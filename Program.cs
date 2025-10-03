@@ -21,10 +21,10 @@ public class Plugin : BasePlugin
         // Log.LogInfo(s.name);
         // var mainAssetBundle = UnityEngine.AssetBundle.LoadFromStream(s);
         // Log.LogInfo(mainAssetBundle.name);
-        // Log.LogInfo("Load MyPlugins");
-        ClassInjector.RegisterTypeInIl2Cpp<InjectComponent>();
-
         
+        Log.LogInfo("Load MyPlugins");
+        
+        ClassInjector.RegisterTypeInIl2Cpp<InjectComponent>();
         BepInExUtility = GameObject.Find("BepInExUtility");
 
         if (BepInExUtility == null)
@@ -44,7 +44,7 @@ public class Plugin : BasePlugin
 
     public class InjectComponent : MonoBehaviour
     {
-        public AssetBundle assetBundle;
+        //public AssetBundle assetBundle;
         public ManualLogSource Log;
         public MainMenu menu;
         public CharacterMenu characterMenu;
@@ -83,7 +83,7 @@ public class Plugin : BasePlugin
         {
             if(!menu)
                 menu = FindFirstObjectByType<MainMenu>();
-            if(!characterMenu)
+            if(menu && !characterMenu)
                 characterMenu = CustomCharacterMaker.CharacterMenuFromUI(menu);
         }
         

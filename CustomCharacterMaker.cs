@@ -1,5 +1,4 @@
 ﻿
-using Il2CppInterop.Runtime;
 using UnityEngine;
 
 namespace MyPlugins;
@@ -25,7 +24,7 @@ public class CustomCharacterMaker
         var baseCharBox = menu.characterPrefabUi;
         var parent = baseCharBox.transform.parent;
         
-        var newCharBox = GameObject.Instantiate(baseCharBox, parent);
+        var newCharBox = UnityEngine.Object.Instantiate(baseCharBox, parent);
         var charData = newCharBox.GetComponent<MyButtonCharacter>();
         charData.SetCharacter(character);
     }
