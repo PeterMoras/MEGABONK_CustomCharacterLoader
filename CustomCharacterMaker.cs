@@ -1,4 +1,5 @@
 ﻿
+using Il2CppInterop.Runtime;
 using UnityEngine;
 
 namespace MyPlugins;
@@ -19,7 +20,7 @@ public class CustomCharacterMaker
         return mainMenu.tabCharacters.transform.GetChild(0).GetComponent<CharacterMenu>();
     }
 
-    public static void AddNewCharacter(CharacterMenu menu, CharacterData character)
+    public static void AddNewCharacterToButtonMenu(CharacterMenu menu, CharacterData character)
     {
         var baseCharBox = menu.characterPrefabUi;
         var parent = baseCharBox.transform.parent;
@@ -29,14 +30,26 @@ public class CustomCharacterMaker
         charData.SetCharacter(character);
     }
 
-    public static CharacterData GetFoxData(CharacterMenu menu)
+    public static CharacterData GetFoxData()
     {
-        var baseCharBox = menu.characterPrefabUi;
-        return baseCharBox.GetComponent<MyButtonCharacter>().characterData;
+        return DataManager.Instance.characterData[ECharacter.Fox];
+        // var baseCharBox = menu.characterPrefabUi;
+        // return baseCharBox.GetComponent<MyButtonCharacter>().characterData;
     }
-    // public static UnityEngine.Object LoadAsset(AssetBundle assetBundle, string assetName)
-    // {
-    //     return UnityEngine.Object.Instantiate<GameObject>(assetBundle.LoadAsset(assetName,Il2CppType.Of<GameObject>()).Cast<GameObject>());
-    //     
-    // }
+    public static UnityEngine.Object LoadAsset(AssetBundle assetBundle, string assetName)
+    {
+        var asset = assetBundle.LoadAssetAsync(assetName, Il2CppType.Of<UnityEngine.Object>());
+        return UnityEngine.Object.Instantiate<UnityEngine.Object>(asset.GetResult());
+        
+    }
+    public static GameObject importModel(AssetBundle assetBundle,string assetName)
+    {
+
+        //assetBundle.LoadAllAssets(Il2CppType.Of<GameObject>());
+        //Log.LogInfo("Loaded all assets of type: "+Il2CppType.Of<GameObject>());
+        //MainAssetBundle.LoadAllAssets<UnityEngine.GameObject>();
+        //Object.
+        return UnityEngine.Object.Instantiate<GameObject>(assetBundle.LoadAsset(assetName,Il2CppType.Of<GameObject>()).Cast<GameObject>());
+        
+    }
 }
