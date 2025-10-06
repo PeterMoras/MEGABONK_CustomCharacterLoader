@@ -32,9 +32,9 @@ public class CustomCharacterMaker
 
     public static CharacterData GetFoxData()
     {
-        return DataManager.Instance.characterData[ECharacter.Fox];
+        return DataManager.Instance.unsortedCharacterData._items[0];
         // var baseCharBox = menu.characterPrefabUi;
-        // return baseCharBox.GetComponent<MyButtonCharacter>().characterData;
+        //return baseCharBox.GetComponent<MyButtonCharacter>().characterData;
     }
     public static UnityEngine.Object LoadAsset(AssetBundle assetBundle, string assetName)
     {
