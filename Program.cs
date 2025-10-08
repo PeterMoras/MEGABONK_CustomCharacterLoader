@@ -30,6 +30,8 @@ using UnityEngine.Localization.Tables;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceLocations;
 using UnityEngine.ResourceManagement.ResourceProviders;
+using Directory = System.IO.Directory;
+using File = Il2CppSystem.IO.File;
 using Input = UnityEngine.Input;
 using KeyCode = UnityEngine.KeyCode;
 using Object = UnityEngine.Object;
@@ -41,6 +43,7 @@ namespace CustomCharacterLoader;
 [BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, CustomCharacterLoader.MyPluginInfo.PLUGIN_VERSION)]
 public class CustomCharacterLoaderPlugin : BasePlugin
 {
+    public static readonly string CUSTOM_CHARACTER_FOLDER = "CustomCharacters";
     public static GameObject BepInExUtility;
     public override void Load()
     {
@@ -53,6 +56,9 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         // Log.LogDebug(mainAssetBundle.name);
         
         // Log.LogInfo("Initializing Custom Character Loader");
+        var customCharacterPath = Path.Combine(Paths.PluginPath, CUSTOM_CHARACTER_FOLDER);
+        if (!Directory.Exists(customCharacterPath) && customCharacterPath != null)
+            Directory.CreateDirectory(customCharacterPath);
         
         ClassInjector.RegisterTypeInIl2Cpp<InjectComponent>();
         BepInExUtility = GameObject.Find("BepInExUtility");
@@ -151,8 +157,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         }
         public static string[] FindCustomCharacterPaths()
         {
-            var customCharacterFolder = "CustomCharacters";
-            var customCharacterPath = Path.Combine(Paths.PluginPath, customCharacterFolder);
+            var customCharacterPath = Path.Combine(Paths.PluginPath, CUSTOM_CHARACTER_FOLDER);
             var assetPaths = Il2CppSystem.IO.Directory.GetFiles(customCharacterPath, "*.json");
         
             return assetPaths;
