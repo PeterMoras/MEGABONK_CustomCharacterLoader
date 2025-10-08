@@ -31,11 +31,13 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceLocations;
 using UnityEngine.ResourceManagement.ResourceProviders;
 using Directory = System.IO.Directory;
+using EnumerationOptions = Il2CppSystem.IO.EnumerationOptions;
 using File = Il2CppSystem.IO.File;
 using Input = UnityEngine.Input;
 using KeyCode = UnityEngine.KeyCode;
 using Object = UnityEngine.Object;
 using Path = Il2CppSystem.IO.Path;
+using SearchOption = System.IO.SearchOption;
 using StreamReader = Il2CppSystem.IO.StreamReader;
 
 namespace CustomCharacterLoader;
@@ -139,6 +141,8 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             foreach (var jsonPath in paths)
             {
                 int endPos = jsonPath.LastIndexOf('.');
+                if(jsonPath.EndsWith(".custom.json"))
+                    endPos = jsonPath.LastIndexOf(".custom.json");
                 string assetPath = jsonPath.Substring(0, endPos);
                 var s = Il2CppSystem.IO.File.OpenRead(assetPath);
                 var assetBundle = AssetBundle.LoadFromStream(s);
@@ -158,9 +162,11 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         public static string[] FindCustomCharacterPaths()
         {
             var customCharacterPath = Path.Combine(Paths.PluginPath, CUSTOM_CHARACTER_FOLDER);
-            var assetPaths = Il2CppSystem.IO.Directory.GetFiles(customCharacterPath, "*.json");
-        
-            return assetPaths;
+            string[] assetPaths = Il2CppSystem.IO.Directory.GetFiles(customCharacterPath, "*.json");
+
+            string[] additionalCharacters = Il2CppSystem.IO.Directory.GetFiles(Paths.PluginPath, "*.custom.json", new EnumerationOptions(){ RecurseSubdirectories = true });
+            
+            return assetPaths.Concat(additionalCharacters).ToArray();
         }
         
 
