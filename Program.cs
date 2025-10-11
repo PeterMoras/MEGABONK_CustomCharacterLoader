@@ -30,6 +30,7 @@ using UnityEngine.Localization.Tables;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceLocations;
 using UnityEngine.ResourceManagement.ResourceProviders;
+using UnityEngine.Serialization;
 using Directory = System.IO.Directory;
 using EnumerationOptions = Il2CppSystem.IO.EnumerationOptions;
 using File = Il2CppSystem.IO.File;
@@ -49,20 +50,12 @@ public class CustomCharacterLoaderPlugin : BasePlugin
     public static GameObject BepInExUtility;
     public override void Load()
     {
-        // Debug.Log("Load MyPlugin");
-        // Log.LogInfo("Started Loading MyPlugins");
-        //
-        // var assetPath = Il2CppSystem.IO.Path.Combine(Paths.PluginPath, ASSET_BUNDLE_NAME);
-        // var s = Il2CppSystem.IO.File.OpenRead(assetPath);
-        // var mainAssetBundle = AssetBundle.LoadFromStream(s);
-        // Log.LogDebug(mainAssetBundle.name);
-        
-        // Log.LogInfo("Initializing Custom Character Loader");
         var customCharacterPath = Path.Combine(Paths.PluginPath, CUSTOM_CHARACTER_FOLDER);
         if (!Directory.Exists(customCharacterPath) && customCharacterPath != null)
             Directory.CreateDirectory(customCharacterPath);
         
         ClassInjector.RegisterTypeInIl2Cpp<InjectComponent>();
+        ClassInjector.RegisterTypeInIl2Cpp<MyRefTest>();
         BepInExUtility = GameObject.Find("BepInExUtility");
 
         if (BepInExUtility == null)
@@ -83,6 +76,27 @@ public class CustomCharacterLoaderPlugin : BasePlugin
 
     }
 
+    [HarmonyPatch(typeof(DataManager),nameof(DataManager.GetSkin))]
+    public static class DataManagerGetSkinPatch
+    {
+        [HarmonyPrefix]
+        internal static bool Prefix(DataManager __instance, ECharacter character, int savedIndex,ref SkinData __result)
+        {
+            var skins = __instance.GetSkins(character);
+            if (savedIndex >= 0 && savedIndex < skins.Count)
+            {
+                __result = skins._items[savedIndex];
+            }
+            else
+            {
+                __result = skins._items[0];
+            }
+
+            return false;
+
+        }
+    }
+
     [HarmonyPatch(typeof(DataManager))]
     [HarmonyPatch(nameof(DataManager.Load))]
     public static class DataManagerLoadCustomCharacterPatch
@@ -92,7 +106,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         {
             //Debug.Log("Trigger Load Custom Character Data");
             //InjectComponent.Instance.InitCustomCharacter();
-            InjectComponent.Instance.LoadCustomCharacters();
+            InjectComponent.Instance.LoadCustomCreations();
         }
     }
     [HarmonyPatch(typeof(SaveManager),nameof(SaveManager.Load),new Type[] { typeof(bool) })]
@@ -103,12 +117,71 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         {
             Debug.Log("Patching Save File with Custom Character Skin data");
             //InjectComponent.Instance.InitCustomCharacter();
-            var characters = InjectComponent.Instance.addedCharacters;
+            var characters = InjectComponent.Instance.AddedCharacters;
             foreach (var eCharacter in characters)
             {
                 __instance.config.preferences.characterSkins.TryAdd(eCharacter,0);
             }
         }
+    }
+    [HarmonyPatch(typeof(PlayerRenderer),nameof(PlayerRenderer.SetSkin),new Type[] { typeof(SkinData) })]
+    public static class PlayerRendererCustomSkinLoaderPatch
+    {
+        [HarmonyPrefix]
+        internal static bool Prefix(PlayerRenderer __instance, SkinData skinData)
+        {
+            var gameObject = InjectComponent.Instance.GetModelFromSkinData(skinData);
+            if (gameObject == null)
+            {
+                InjectComponent.Instance.Log.LogInfo("Unable to find game object for "+skinData.name);
+                return true;
+            }
+            UpdatePlayerRendererWithNewGameObject(gameObject, __instance);
+            
+            return true; //never skip
+        }
+
+        internal static void UpdatePlayerRendererWithNewGameObject(GameObject prefab, PlayerRenderer pRenderer)
+        {
+            //don't update if gameobject is same as clone   
+            //var log = InjectComponent.Instance.Log;
+            //log.LogInfo($"pRenderer: {pRenderer.name}");
+            //log.LogInfo($"new gameObject: {prefab?.name}");
+
+            var newMesh =  prefab.GetComponentInChildren<SkinnedMeshRenderer>();
+            var originalMesh = pRenderer.renderer;
+            var originalGameObject = pRenderer.rendererObject;
+            if (newMesh.sharedMesh == originalMesh.sharedMesh)
+            {
+                //InjectComponent.Instance.Log.LogInfo("Same Mesh as original, dont update");
+                return;
+            }
+
+            var instancedPrefab = GameObject.Instantiate(prefab, pRenderer.transform);
+            instancedPrefab.transform.localPosition = Vector3.zero;
+            newMesh =  prefab.GetComponentInChildren<SkinnedMeshRenderer>();
+            //update values 
+            pRenderer.rendererObject = instancedPrefab;
+            pRenderer.renderer = newMesh;
+            pRenderer.hips = newMesh.rootBone;
+            pRenderer.animator = instancedPrefab.GetComponent<Animator>();
+            pRenderer.torso = null;
+            GameObject.Destroy(originalGameObject);
+            
+            //update CharacterData with original gameobject reference so it works in game
+            pRenderer.characterData.prefab = prefab;
+            
+        }
+
+    }
+
+    public static CustomType DetermineCustomType(JObject jsonObject)
+    {
+        if (jsonObject.ContainsKey("character")) return CustomType.Character;
+        if (jsonObject.ContainsKey("soloSkin")) return CustomType.Skin;
+        if (jsonObject.ContainsKey("soloWeapon")) return CustomType.Weapon;
+        
+        return CustomType.Character;
     }
     
     public static LocalizedString CreateLocalizedString(string uid, string value)
@@ -122,7 +195,10 @@ public class CustomCharacterLoaderPlugin : BasePlugin
     {
         public static InjectComponent Instance;
         public ManualLogSource Log;
-        public List<ECharacter> addedCharacters;
+        public List<ECharacter> AddedCharacters;
+        public List<CharacterData> CharacterReferences = new List<CharacterData>();
+
+        public Dictionary<SkinData, GameObject> SkinRenderObjects = new Dictionary<SkinData, GameObject>();
         
         // public AssetBundle assetBundle;
         // public MainMenu menu;
@@ -131,13 +207,18 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         //needs to be added in IL2CPP to register properly I think
         public InjectComponent(IntPtr handle) : base(handle) { }
 
-        public void LoadCustomCharacters()
+
+        public void LoadCustomCreations()
         {
-            Log.LogInfo("Loading Custom Characters");
 
             var dataManager = DataManager.Instance;
             var paths = FindCustomCharacterPaths();
-            addedCharacters = new List<ECharacter>();
+            AddedCharacters = new List<ECharacter>();
+
+            //Setup custom skin manager
+            SetupCustomSkinLoader(dataManager);
+            
+            Log.LogInfo("Loading Custom Creations");
             foreach (var jsonPath in paths)
             {
                 int endPos = jsonPath.LastIndexOf('.');
@@ -153,12 +234,80 @@ public class CustomCharacterLoaderPlugin : BasePlugin
                 
                 steamReader.Dispose();
                 s2.Dispose();
-                var reader = new CharacterAdder(dataManager, jsonObject, assetBundle, Log);
-                var eCharacter = reader.AddCustomCharacter();
-                addedCharacters.Add(eCharacter);
-            }
+                var customType = DetermineCustomType(jsonObject);
 
+                switch (customType)
+                {
+                    case CustomType.Character:
+                        var reader = new CharacterAdder(dataManager, jsonObject, assetBundle, Log);
+                        var eCharacter = reader.AddCustomCharacter();
+                        AddedCharacters.Add(eCharacter);
+                        break;
+                    case CustomType.Skin:
+                        SkinAdder.AddSkinToGame(jsonObject, assetBundle, this, dataManager, Log);
+                        break;
+                    default:
+                        break;
+                }
+                
+                
+            }
         }
+        
+        public GameObject GetModelFromSkinData(SkinData skinData)
+        {
+            SkinRenderObjects.TryGetValue(skinData, out var renderObject);
+            return renderObject;
+        }
+
+        public void AddSoloCustomSkin(SkinData skinData, GameObject prefab)
+        {
+            SkinRenderObjects.Add(skinData, prefab);
+            var fakeCharacterData = ScriptableObject.CreateInstance<CharacterData>();
+            fakeCharacterData.prefab = prefab;
+            this.GetComponent<DataManager>().unsortedCharacterData.Add(fakeCharacterData);
+            //prefab.transform.parent = this.transform;
+        }
+        
+        
+        
+        public void SetupCustomSkinLoader(DataManager dataManager)
+        {
+            //creates a lookup between all base skins and their render gameobjects for the PlayerRenderer component
+            var allBaseSkins = dataManager.skinData;
+            HashSet<CharacterData> uniqueCharacterSkins = new HashSet<CharacterData>();
+            
+            foreach (var characterSkinListEntry in allBaseSkins)
+            {
+                if (characterSkinListEntry.value.Count == 0) continue;
+                
+                ECharacter character = characterSkinListEntry.value._items[0].character;
+                var skinList = characterSkinListEntry.value;
+                var success = dataManager.characterData.TryGetValue(character,out var characterData);
+                
+                //Log.LogInfo($"get key {character} for skinlist {characterData}");
+                
+                if (success)
+                {
+                    foreach (var skin in skinList)
+                    {
+                        SkinRenderObjects.Add(skin,characterData.prefab);
+                        uniqueCharacterSkins.Add(characterData);
+                    }
+                }
+            }
+            //add a reference to all unique skins so they dont unload
+            var myDm = this.gameObject.AddComponent<DataManager>();
+            myDm.unsortedCharacterData = new Il2CppSystem.Collections.Generic.List<CharacterData>();
+
+            foreach (var skin in uniqueCharacterSkins)
+            {
+                myDm.unsortedCharacterData.Add(Instantiate(skin)); //copy of clone so no alteratiosn affect the reference
+            }
+            
+            
+        }
+        
         public static string[] FindCustomCharacterPaths()
         {
             var customCharacterPath = Path.Combine(Paths.PluginPath, CUSTOM_CHARACTER_FOLDER);
@@ -168,202 +317,20 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             
             return assetPaths.Concat(additionalCharacters).ToArray();
         }
+   
         
+    }
 
-       // No longer in use
-    //     public void InitCustomCharacter()
-    //     {
-    //         Log.LogInfo(assetBundle.name);
-    //         Log.LogInfo(assetBundle.mainAsset);
-    //         var myWeapon = assetBundle.LoadAssetAsync("WeaponData", Il2CppType.Of<UnityEngine.Object>()).GetResult();
-    //         var weaponData = myWeapon.Cast<WeaponData>();
-    //         var myPassive = assetBundle.LoadAssetAsync("PassiveData", Il2CppType.Of<UnityEngine.Object>()).GetResult();
-    //         var passiveData = myPassive.Cast<PassiveData>();
-    //         var myCharacter = assetBundle.LoadAssetAsync("CharacterData", Il2CppType.Of<UnityEngine.Object>()).GetResult();
-    //         var characterData = myCharacter.Cast<CharacterData>();
-    //         Log.LogInfo("Loaded Custom Character data");
-    //         var mySkin = assetBundle.LoadAssetAsync("SkinData", Il2CppType.Of<UnityEngine.Object>()).GetResult();
-    //         var skinData = mySkin.Cast<SkinData>();
-    //         Log.LogInfo("Loaded Custom skin data");
-    //
-    //         
-    //         var myProjectile = assetBundle.LoadAssetAsync("MyProjectile",Il2CppType.Of<UnityEngine.Object>() ).GetResult().Cast<GameObject>();
-    //         Log.LogInfo(myProjectile.name);
-    //         Log.LogInfo("Loaded custom projectile");
-    //         
-    //         // var customScriptDataRequest = assetBundle.LoadAssetAsync("MyCharacterData", Il2CppType.Of<UnityEngine.Object>());
-    //         // Log.LogInfo("Found custom character script data" + customScriptDataRequest);
-    //         // var customScriptData = customScriptDataRequest.GetResult().Cast<MyCharacterData>();
-    //         // Log.LogInfo(customScriptData.name);
-    //         Log.LogInfo("Loading Character Menu");
-    //         var foxCharacterData = DataManager.Instance.unsortedCharacterData._items[0];
-    //         Log.LogInfo("Loaded fox data");
-    //         //var ogreCharacter = DataManager.Instance.characterData[ECharacter.Ogre];
-    //         //Log.LogInfo(foxCharacterData.weapon.attack.name);
-    //
-    //         bool useFoxBaseWeapon = true;
-    //         if (useFoxBaseWeapon)
-    //         {
-    //             var tempWeapon = weaponData;
-    //             tempWeapon.upgradeData = ScriptableObject.CreateInstance<UpgradeData>();
-    //             tempWeapon.upgradeData.upgradeModifiers = foxCharacterData.weapon.upgradeData.upgradeModifiers;
-    //             var modifier = new StatModifier()
-    //             {
-    //                 modifyType = EStatModifyType.Multiplication,
-    //                 modification = 10,
-    //                 stat = EStat.DamageMultiplier
-    //             };
-    //             tempWeapon.upgradeData.upgradeModifiers.Add(modifier);
-    //             tempWeapon.baseStats = new Il2CppSystem.Collections.Generic.Dictionary<EStat, float>();
-    //             // foreach (var baseStat in foxCharacterData.weapon)
-    //             // {
-    //             //     tempWeapon.baseStats.TryAdd(baseStat.key, baseStat.value);
-    //             //     Log.LogInfo(baseStat.key + " : " + baseStat.value);
-    //             // }
-    //             // tempWeapon.baseStats = foxCharacterData.weapon.baseStats;
-    //             
-    //             tempWeapon.baseStats.Add(EStat.AttackSpeed,5f);
-    //             tempWeapon.baseStats.Add(EStat.Projectiles,10f);
-    //             tempWeapon.baseStats.Add(EStat.SizeMultiplier,1f);
-    //             tempWeapon.baseStats.Add(EStat.ProjectileBounces,0f);
-    //             tempWeapon.baseStats.Add(EStat.DurationMultiplier,2f);
-    //             tempWeapon.baseStats.Add(EStat.ProjectileSpeedMultiplier,0.5f);
-    //             tempWeapon.baseStats.Add(EStat.KnockbackMultiplier,1f);
-    //             tempWeapon.baseStats.Add(EStat.CritChance,0f);
-    //             tempWeapon.baseStats.Add(EStat.DamageMultiplier,10f);
-    //             tempWeapon.baseStats.Add(EStat.CritDamage,0f);
-    //
-    //             tempWeapon.damageSourceName = tempWeapon.name;
-    //             // tempWeapon.attackDuration = 1;
-    //             // tempWeapon.spawnProjectileRange = 40;
-    //             weaponData = tempWeapon;
-    //
-    //             // weaponData = foxCharacterData.weapon;
-    //             // weaponData.attack = tempWeapon.attack;
-    //             // weaponData.icon = tempWeapon.icon;
-    //             // weaponData.upgradeData = tempWeapon.upgradeData;
-    //             // weaponData.baseStats = tempWeapon.baseStats;
-    //             //
-    //             // weaponData.description = tempWeapon.description;
-    //             // weaponData.spawnOffset = Vector3.zero;
-    //             // weaponData.AchievementRequirement = null;
-    //
-    //         }
-    //         else
-    //         {
-    //             //weaponData.upgradeData = foxCharacterData.weapon.upgradeData;
-    //             weaponData.baseStats = foxCharacterData.weapon.baseStats;
-    //             weaponData.onlySpawnWhenCloseEnemies = false;
-    //         }
-    //         
-    //         
-    //         
-    //
-    //         //realCharacterData.weapon = weaponData;
-    //         
-    //         //var explodeScript = realCharacterData.weapon.attack.GetComponent<WeaponAttack>().prefabProjectile.GetComponent<ProjectileExploding>();
-    //         //realCharacterData.weapon = otherCharacter.weapon;
-    //         //Log.LogInfo(explodeScript.name);
-    //         //var effect = myProjectile.GetComponent<ProjectileExploding>().explosionEffect;
-    //         // CopyComponent(myProjectile, explodeScript);
-    //         // realCharacterData.weapon.attack.GetComponent<WeaponAttack>().prefabProjectile.GetComponent<ProjectileExploding>().explosionEffect = myProjectile.GetComponent<ProjectileExploding>().explosionEffect;
-    //         // myProjectile.GetComponent<ProjectileExploding>().explosionEffect = effect;
-    //         
-    //         
-    //         //var skinData = DataManager.Instance.skinData[ECharacter.Fox];
-    //         var skinList = new Il2CppSystem.Collections.Generic.List<SkinData>();
-    //         skinList.Add(skinData);
-    //         
-    //         
-    //         fillInCharacterData(characterData,skinList, weaponData, passiveData);
-    //         //CustomCharacterMaker.AddNewCharacterToButtonMenu(characterMenu, characterData);
-    //         
-    //         //Add character to character list so it gets populated on menu startup
-    //         DataManager.Instance.unsortedCharacterData.Add(characterData);
-    //         
-    //         //add weapon to weapon list
-    //         DataManager.Instance.unsortedWeapons.Add(weaponData);
-    //
-    //     }
-    //
-    //     // internal void GetMenuUI()
-    //     // {
-    //     //     if(!menu)
-    //     //         menu = FindFirstObjectByType<MainMenu>();
-    //     //     if(menu && !characterMenu)
-    //     //         characterMenu = CustomCharacterMaker.CharacterMenuFromUI(menu);
-    //     // }
-    //
-    //     public void fillInCharacterData(CharacterData characterData, Il2CppSystem.Collections.Generic.List<SkinData> skinData, WeaponData weaponData = null, PassiveData passiveData = null)
-    //     {
-    //         string localeCode = LocalizationSettings.SelectedLocale.Identifier.Code;
-    //         Debug.Log($"Current Locale Code: {localeCode}");
-    //         ECharacter eCharacterID = (ECharacter)2001;
-    //         EWeapon eWeaponID = (EWeapon)2001;
-    //         EPassive ePassiveID = (EPassive)2001;
-    //         DataManager datamanager = DataManager.Instance;
-    //         
-    //         //UPPDATE CHARACTER DATA
-    //         if (characterData != null)
-    //         {
-    //             characterData.eCharacter = eCharacterID;
-    //             characterData.localizedName = CreateLocalizedString("coolgal_character_name", "Cool gal");
-    //             characterData.localizedDescription = CreateLocalizedString("coolgal_character_description", "Cool gal is a cool gal");
-    //             datamanager.characterData.Add(eCharacterID, characterData);
-    //
-    //             foreach (var skin in skinData)
-    //             {
-    //                 skin.character = eCharacterID;
-    //             }
-    //             datamanager.skinData.Add(eCharacterID, skinData);
-    //             SaveManager.Instance.config.preferences.characterSkins.TryAdd(eCharacterID,0);
-    //         }
-    //         
-    //         
-    //         //UPDATE WEAPON DATA
-    //         if (weaponData != null)
-    //         {
-    //             weaponData.eWeapon = eWeaponID;
-    //             var weaponName = "cool weapon";
-    //             weaponData.localizedName = CreateLocalizedString("coolgal_weapon_name", weaponName);
-    //             weaponData.localizedDescription = CreateLocalizedString("coolgal_weapon_description", "this is a cool weapon");
-    //             datamanager.weapons.Add(eWeaponID, weaponData);
-    //             characterData.weapon = weaponData;
-    //             EffectManager.weaponNamesCache.Add(eWeaponID,weaponName);
-    //         }
-    //
-    //         if (passiveData != null)
-    //         {
-    //             passiveData.ePassive = ePassiveID;
-    //             passiveData.localizedName = CreateLocalizedString("coolgal_passive_name", "cool passive");
-    //             passiveData.localizedDescription = CreateLocalizedString("coolgal_passive_description", "this is a cool passive");
-    //             passiveData.dummyPassive = new PassiveAbilityRngBlessing();
-    //             characterData.passive = passiveData;
-    //         }
-    //         
-    //         // var stringTable = LocalizationSettings.StringDatabase.GetTable("Main Menu",LocalizationSettings.SelectedLocale);
-    //         // Log.LogInfo(LocalizationSettings.SelectedLocale.Identifier.Code);
-    //         // Log.LogInfo(stringTable.LocaleIdentifier.Code);
-    //         // foreach (var entry in stringTable.m_TableEntries)
-    //         // {
-    //         //     Log.LogInfo(entry.key + " : " + entry.value.Value);
-    //         // }
-    //         
-    //         // characterData.passive.name = "cool passive2";
-    //         // characterData.passive.dummyPassive = new PassiveAbilityCurse();
-    //         //
-    //         // characterData.weapon.name = "cool weapon2";
-    //         // characterData.weapon.description = "cool description2";
-    //         
-    //         
-    //         //datamanager.weapons.Add(eWeaponID,characterData.weapon);
-    //         
-    //     }
-    //
-    //
-    //     
-    //     
-    //     
+    public enum CustomType
+    {
+        Character,
+        Skin,
+        Weapon
+    }
+    
+    public class MyRefTest : MonoBehaviour
+    {
+        public List<GameObject> testObjects = new List<GameObject>();
     }
 
     
