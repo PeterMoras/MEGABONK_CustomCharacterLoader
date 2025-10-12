@@ -165,8 +165,7 @@ public class CharacterAdder
         character.colliderWidth = jCharacter.colliderWidth;
         character.coolness = jCharacter.coolness;
         character.difficulty = jCharacter.difficulty;
-        character.audioFootsteps = new AudioClip[0]; //jCharacter.audioFootsteps);
-        character.themeSong = null; //jCharacter.themeSong;
+        character.themeSong = LoadAsset<MusicTrack>(jCharacter.themeSongPath);
         character.prefab = LoadAsset<GameObject>(jCharacter.prefabPath);
         character.icon = LoadAsset<Texture2D>(jCharacter.iconPath);
         character.statModifiers = jCharacter.statModifiers;
@@ -175,6 +174,12 @@ public class CharacterAdder
         foreach (var category in jCharacter.categoryRatios)
         {
             character.categoryRatios[category.category] = category.value;
+        }
+
+        character.audioFootsteps = new Il2CppReferenceArray<AudioClip>(jCharacter.audioFootstepsPaths.Count);
+        for (int i = 0; i < jCharacter.audioFootstepsPaths.Count; i++)
+        {
+            character.audioFootsteps[i] = LoadAsset<AudioClip>(jCharacter.audioFootstepsPaths[i]);
         }
         
         // Log.LogInfo("Does character still exist?");
@@ -257,8 +262,8 @@ public struct JCharacter
     public float colliderWidth; // The width of the character collider.
     public int coolness; // A coolness factor for the character.
     public int difficulty; // Difficulty level for the character.
-    public Il2CppArrayBase<string> audioFootsteps; // Array of audio clips for character footsteps.
-    public string themeSong; // Optional theme song for the character.
+    public Il2CppArrayBase<string> audioFootstepsPaths; // Array of audio clips for character footsteps.
+    public string themeSongPath; // Optional theme song for the character.
     public string prefabPath; // Path to the character's prefab file.
     public string iconPath; // Path to the character's icon file.
     public Il2CppSystem.Collections.Generic.List<StatModifier> statModifiers;
@@ -277,8 +282,8 @@ public struct JCharacter
             colliderWidth = jobj["colliderWidth"].ToObject<float>(),
             coolness = jobj["coolness"].ToObject<int>(),
             difficulty = jobj["difficulty"].ToObject<int>(),
-            audioFootsteps = jobj["audioFootsteps"].ToObject<Il2CppArrayBase<string>>(),
-            themeSong = jobj["themeSong"].ToObject<string>(),
+            audioFootstepsPaths = jobj["audioFootstepsPaths"].ToObject<Il2CppArrayBase<string>>(),
+            themeSongPath = jobj["themeSongPath"].ToObject<string>(),
             prefabPath = jobj["prefabPath"].ToObject<string>(),
             iconPath = jobj["iconPath"].ToObject<string>(),
             statModifiers = jobj["statModifiers"].ToObject<Il2CppSystem.Collections.Generic.List<StatModifier>>(),
