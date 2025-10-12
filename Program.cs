@@ -43,7 +43,7 @@ using StreamReader = Il2CppSystem.IO.StreamReader;
 
 namespace CustomCharacterLoader;
 
-[BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, CustomCharacterLoader.MyPluginInfo.PLUGIN_VERSION)]
+[BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, "1.1.0")]
 public class CustomCharacterLoaderPlugin : BasePlugin
 {
     public static readonly string CUSTOM_CHARACTER_FOLDER = "CustomCharacters";

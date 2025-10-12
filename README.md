@@ -3,7 +3,5 @@ A BepInEx mod for Megabonk that loads custom characters - including weapons, pas
 
 This mod can also be found (in a short while) on Thunderstore.
 
-As this is the 1.0.0 release, expect more features later. Create a github issue for feature requests or if you have issues with this mod working.
-
 Also, I already know about the error 'Material 'A' with Shader 'B' doesn't have a float or range property '_RenderFace''
-I'm workign on fixing it as part of the 1.1 release. But it shouldn't affect anyone's ability to create or share custom characters.
+I'm working on fixing it as part of the 1.2 release. But it shouldn't affect anyone's ability to create or share custom characters.
