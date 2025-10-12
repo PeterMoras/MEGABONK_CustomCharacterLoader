@@ -17,7 +17,7 @@ public class SkinAdder
         var jSkin = JSoloSkin.FromJSON(jsonObject["soloSkin"].Cast<JObject>());
         var skin = ScriptableObject.CreateInstance<SkinData>();
         
-        if (dataManager.skinData.TryGetValue(jSkin.eCharacter, out var skinDataList))
+        if (dataManager.skinData.TryGetValue((ECharacter)jSkin.eCharacter, out var skinDataList))
         {
             //done first to prevent Garbage collector from removing this object during setup process
             skinDataList.Add(skin);
@@ -40,7 +40,7 @@ public class SkinAdder
             skin.serializedLocalizationKeysName = new Il2CppSystem.Collections.Generic.List<LocalizationKey>() { };
             skin.serializedLocalizationKeys = new Il2CppSystem.Collections.Generic.List<LocalizationKey>() { };
             
-            log.LogInfo("Loaded custom skin: "+jSkin.skinName);
+            log.LogInfo("Loaded custom skin: "+jSkin.skinName + " for character "+jSkin.eCharacter);
             //SkinData setup complete. Now add it to skinlist in inject component
             var prefab = LoadAsset<GameObject>(jSkin.prefabPath,assetBundle);
             injectComponent.AddSoloCustomSkin(skin,prefab);
@@ -80,6 +80,7 @@ public class SkinAdder
             return new JSoloSkin()
             {
                 skinName = jobj["skinName"].ToObject<string>(),
+                eCharacter = jobj["eCharacter"].ToObject<ECharacter>(),
                 description = jobj["description"].ToObject<string>(),
                 iconPath = jobj["iconPath"].ToObject<string>(),
                 prefabPath = jobj["prefabPath"].ToObject<string>(),
