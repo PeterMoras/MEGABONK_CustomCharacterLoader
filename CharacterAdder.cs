@@ -165,7 +165,8 @@ public class CharacterAdder
         character.colliderWidth = jCharacter.colliderWidth;
         character.coolness = jCharacter.coolness;
         character.difficulty = jCharacter.difficulty;
-        character.themeSong = LoadAsset<MusicTrack>(jCharacter.themeSongPath);
+        if(jCharacter.themeSongPath != null)
+            character.themeSong = LoadAsset<MusicTrack>(jCharacter.themeSongPath);
         character.prefab = LoadAsset<GameObject>(jCharacter.prefabPath);
         character.icon = LoadAsset<Texture2D>(jCharacter.iconPath);
         character.statModifiers = jCharacter.statModifiers;
@@ -176,11 +177,16 @@ public class CharacterAdder
             character.categoryRatios[category.category] = category.value;
         }
 
-        character.audioFootsteps = new Il2CppReferenceArray<AudioClip>(jCharacter.audioFootstepsPaths.Count);
-        for (int i = 0; i < jCharacter.audioFootstepsPaths.Count; i++)
+        if (jCharacter.audioFootstepsPaths != null)
         {
-            character.audioFootsteps[i] = LoadAsset<AudioClip>(jCharacter.audioFootstepsPaths[i]);
+            character.audioFootsteps = new Il2CppReferenceArray<AudioClip>(jCharacter.audioFootstepsPaths.Count);
+            for (int i = 0; i < jCharacter.audioFootstepsPaths.Count; i++)
+            {
+                character.audioFootsteps[i] = LoadAsset<AudioClip>(jCharacter.audioFootstepsPaths[i]);
+            }
         }
+
+        
         
         // Log.LogInfo("Does character still exist?");
         // Log.LogInfo(character != null);
@@ -282,8 +288,8 @@ public struct JCharacter
             colliderWidth = jobj["colliderWidth"].ToObject<float>(),
             coolness = jobj["coolness"].ToObject<int>(),
             difficulty = jobj["difficulty"].ToObject<int>(),
-            audioFootstepsPaths = jobj["audioFootstepsPaths"].ToObject<Il2CppArrayBase<string>>(),
-            themeSongPath = jobj["themeSongPath"].ToObject<string>(),
+            audioFootstepsPaths = jobj["audioFootstepsPaths"]?.ToObject<Il2CppArrayBase<string>>(),
+            themeSongPath = jobj["themeSongPath"]?.ToObject<string>(),
             prefabPath = jobj["prefabPath"].ToObject<string>(),
             iconPath = jobj["iconPath"].ToObject<string>(),
             statModifiers = jobj["statModifiers"].ToObject<Il2CppSystem.Collections.Generic.List<StatModifier>>(),
