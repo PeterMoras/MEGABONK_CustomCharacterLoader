@@ -65,6 +65,8 @@ public class CharacterAdder
         _dataManager.unsortedCharacterData.Add(character);
         //add weapon to weapon list
         _dataManager.unsortedWeapons.Add(weapon);
+        _dataManager.unsortedUnlockables.Add(weapon);
+
         
         Log.LogInfo("Loaded Custom Character: " + character.name);
         
@@ -115,6 +117,7 @@ public class CharacterAdder
         weapon.author = _author;
         weapon.eWeapon = (EWeapon) _eCharacter;
         weapon.name = jWeapon.weaponName;
+        // weapon.AchievementRequirement = _dataManager.achievementsData["a_clank"];
         weapon.damageSourceName = jWeapon.weaponName;
         weapon.description = jWeapon.weaponDescription;
         weapon.localizedName = CreateUniqueLocalizedString("weaponName", jWeapon.weaponName);
@@ -159,7 +162,7 @@ public class CharacterAdder
 
         character.description = jCharacter.characterDescription;
         //Log.LogInfo(character.description);
-
+        // character.achievementRequirement = _dataManager.achievementsData["a_clank"];
         character.localizedDescription = CreateUniqueLocalizedString("characterDescription",jCharacter.characterDescription);
         character.colliderHeight = jCharacter.colliderHeight;
         character.colliderWidth = jCharacter.colliderWidth;

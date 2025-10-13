@@ -9,6 +9,7 @@ using Assets.Scripts.Inventory__Items__Pickups.Weapons.Attacks;
 using Assets.Scripts.Managers;
 using Assets.Scripts.Menu.Shop;
 using Assets.Scripts.Saves___Serialization.Progression.Achievements;
+using Assets.Scripts.Saves___Serialization.Progression.Unlocks;
 using BepInEx;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
@@ -96,6 +97,33 @@ public class CustomCharacterLoaderPlugin : BasePlugin
 
         }
     }
+    [HarmonyPatch()]
+    public static class ActivationTogglePatches
+    {
+        [HarmonyPatch(typeof(MyAchievements), nameof(MyAchievements.IsActivated))]
+        [HarmonyPrefix]
+        private static bool IsActivatedPrefix(ref bool __result, UnlockableBase unlockable)
+        {
+            __result = !SaveManager.Instance.progression.inactivated.Contains(unlockable.GetInternalName());
+            return false; // stop original
+        }
+        [HarmonyPatch(typeof(MyAchievements),nameof(MyAchievements.CanToggleActivation))]
+        [HarmonyPrefix]
+        internal static bool Prefix(DataManager __instance, UnlockableBase unlockable, ref bool __result)
+        {
+            bool isBaseWeapon = String.IsNullOrEmpty(unlockable.author);
+            if (!isBaseWeapon)
+            {
+                __result = true;
+                return false;
+            }
+
+            return true;
+        }
+    }
+    
+  
+    
 
     [HarmonyPatch(typeof(DataManager))]
     [HarmonyPatch(nameof(DataManager.Load))]
