@@ -45,10 +45,8 @@ public class CustomCharacterLoaderPlugin : MelonMod
     public static GameObject MelonUtility;
     public override void OnInitializeMelon()
     {
-        MelonLogger.Msg("OnInitializeMelon");
-        MelonLogger.Msg(Directory.GetCurrentDirectory());
+        // Melon<CustomCharacterLoaderPlugin>.Logger.Msg("OnInitializeMelon");
          var customCharacterPath = Il2CppSystem.IO.Path.Combine("Mods", CUSTOM_CHARACTER_FOLDER);
-         MelonLogger.Msg(customCharacterPath);
          if (!Directory.Exists(customCharacterPath) && customCharacterPath != null)
              Directory.CreateDirectory(customCharacterPath);
         
@@ -123,7 +121,7 @@ public class CustomCharacterLoaderPlugin : MelonMod
                 foreach (var mat in finalMaterials)
                 {
                     __instance.allMaterials.Add(mat);
-                    log.Msg(mat.name);
+                    //log.Msg(mat.name);
                 }
                 __instance.allMaterials = matList;
                 __instance.renderer.materials = finalMaterials;
@@ -276,61 +274,61 @@ public class CustomCharacterLoaderPlugin : MelonMod
         //needs to be added in IL2CPP to register properly I think
         public InjectComponent(IntPtr handle) : base(handle) { }
 
-        void Update()
-        {
-            if (UnityEngine.Input.GetKeyDown(KeyCode.H))
-            {
-                
-                //var animatorController = DataManager.Instance.characterData[ECharacter.Fox]?.prefab?.GetComponent<Animator>();
-                var playerRenderer = MyPlayer.Instance.playerRenderer;
-                var shader = playerRenderer.activeMaterials[0]?.shader;
-                if (shader != null)
-                {
-                    var count = shader.GetPropertyCount();
-                    for (int i = 0; i < count; i++)
-                    {
-                        var name = shader.GetPropertyName(i);
-                        var type = shader.GetPropertyType(i);
-                        if (type == ShaderPropertyType.Float)
-                        {
-                            var value = shader.GetPropertyDefaultFloatValue(i);
-                            Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", {type}) = {value}");
-                        }
-                        else if (type == ShaderPropertyType.Range)
-                        {
-                            var value = shader.GetPropertyDefaultFloatValue(i);
-                            var range = shader.GetPropertyRangeLimits(i);
-                            Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", Range({range[0]},{range[1]})) = {value}");
-                        }else if (type == ShaderPropertyType.Vector)
-                        {
-                            var value = shader.GetPropertyDefaultVectorValue(i);
-                            var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
-                            Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", Vector) = {valueStr}");
-                        }else if (type == ShaderPropertyType.Color)
-                        {
-                            var value = shader.GetPropertyDefaultVectorValue(i);
-                            var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
-                            Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", Color) = {valueStr}");
-                        }else if (type == ShaderPropertyType.Texture)
-                        {
-                            var dimension = shader.GetPropertyTextureDimension(i);
-                            var defaultName = shader.GetPropertyTextureDefaultName(i);
-                            if (dimension == TextureDimension.Tex2D)
-                            {
-                                Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", 2D) = \"{defaultName}\" {{}}");
-
-                            }
-                            else
-                            {
-                                Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", {dimension})");
-                            }
-                        }
-                        
-                    }
-                }
-
-            }
-        }
+        // void Update()
+        // {
+        //     if (UnityEngine.Input.GetKeyDown(KeyCode.H))
+        //     {
+        //         
+        //         //var animatorController = DataManager.Instance.characterData[ECharacter.Fox]?.prefab?.GetComponent<Animator>();
+        //         var playerRenderer = MyPlayer.Instance.playerRenderer;
+        //         var shader = playerRenderer.activeMaterials[0]?.shader;
+        //         if (shader != null)
+        //         {
+        //             var count = shader.GetPropertyCount();
+        //             for (int i = 0; i < count; i++)
+        //             {
+        //                 var name = shader.GetPropertyName(i);
+        //                 var type = shader.GetPropertyType(i);
+        //                 if (type == ShaderPropertyType.Float)
+        //                 {
+        //                     var value = shader.GetPropertyDefaultFloatValue(i);
+        //                     Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", {type}) = {value}");
+        //                 }
+        //                 else if (type == ShaderPropertyType.Range)
+        //                 {
+        //                     var value = shader.GetPropertyDefaultFloatValue(i);
+        //                     var range = shader.GetPropertyRangeLimits(i);
+        //                     Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", Range({range[0]},{range[1]})) = {value}");
+        //                 }else if (type == ShaderPropertyType.Vector)
+        //                 {
+        //                     var value = shader.GetPropertyDefaultVectorValue(i);
+        //                     var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
+        //                     Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", Vector) = {valueStr}");
+        //                 }else if (type == ShaderPropertyType.Color)
+        //                 {
+        //                     var value = shader.GetPropertyDefaultVectorValue(i);
+        //                     var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
+        //                     Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", Color) = {valueStr}");
+        //                 }else if (type == ShaderPropertyType.Texture)
+        //                 {
+        //                     var dimension = shader.GetPropertyTextureDimension(i);
+        //                     var defaultName = shader.GetPropertyTextureDefaultName(i);
+        //                     if (dimension == TextureDimension.Tex2D)
+        //                     {
+        //                         Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", 2D) = \"{defaultName}\" {{}}");
+        //
+        //                     }
+        //                     else
+        //                     {
+        //                         Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", {dimension})");
+        //                     }
+        //                 }
+        //                 
+        //             }
+        //         }
+        //
+        //     }
+        // }
 
 
         public void LoadCustomCreations()
@@ -348,7 +346,7 @@ public class CustomCharacterLoaderPlugin : MelonMod
             SetupCustomSkinLoader(dataManager);
             
             Melon<CustomCharacterLoaderPlugin>.Logger.Msg("Loading Custom Creations");
-            MelonLogger.Msg(Directory.GetCurrentDirectory());
+            // MelonLogger.Msg(Directory.GetCurrentDirectory());
             
             foreach (var jsonPath in paths)
             {
