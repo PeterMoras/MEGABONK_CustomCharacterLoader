@@ -3,6 +3,7 @@ using Assets.Scripts.Saves___Serialization.Progression;
 using BepInEx.Logging;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
+using JetBrains.Annotations;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.Localization;
@@ -24,6 +25,7 @@ public class SkinAdder
             dataManager.unsortedSkins.Add(skin);
 
             skin.character = jSkin.eCharacter;
+            skin.author = jSkin.author;
             skin.name = jSkin.skinName;
             skin.skinType = ESkinType.Default;
             skin.icon = LoadAsset<Texture2D>(jSkin.iconPath,assetBundle);
@@ -67,6 +69,7 @@ public class SkinAdder
 
     public struct JSoloSkin
     {
+        public string author; //Name of the author of this skin
         public string skinName; // Name of the skin.
         public string description; // Description of the skin.
         public string iconPath; // Path to the skin's icon.
@@ -79,6 +82,7 @@ public class SkinAdder
         {
             return new JSoloSkin()
             {
+                author = jobj["author"]?.ToObject<string>(),
                 skinName = jobj["skinName"].ToObject<string>(),
                 eCharacter = jobj["eCharacter"].ToObject<ECharacter>(),
                 description = jobj["description"].ToObject<string>(),

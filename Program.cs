@@ -18,6 +18,7 @@ using CustomCharacterLoader;
 using HarmonyLib;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Injection;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Il2CppSystem.Collections;
 using Il2CppSystem.IO;
 using Il2CppSystem.Reflection;
@@ -28,6 +29,7 @@ using UnityEngine.AddressableAssets.ResourceLocators;
 using UnityEngine.Localization;
 using UnityEngine.Localization.Settings;
 using UnityEngine.Localization.Tables;
+using UnityEngine.Rendering;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceLocations;
 using UnityEngine.ResourceManagement.ResourceProviders;
@@ -77,9 +79,10 @@ public class CustomCharacterLoaderPlugin : BasePlugin
 
     }
 
-    [HarmonyPatch(typeof(DataManager),nameof(DataManager.GetSkin))]
-    public static class DataManagerGetSkinPatch
+    [HarmonyPatch()]
+    public static class LoadCorrectSkinDataPatch
     {
+        [HarmonyPatch(typeof(DataManager),nameof(DataManager.GetSkin))]
         [HarmonyPrefix]
         internal static bool Prefix(DataManager __instance, ECharacter character, int savedIndex,ref SkinData __result)
         {
@@ -94,7 +97,50 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             }
 
             return false;
+        }
 
+        [HarmonyPatch(typeof(PlayerRenderer), nameof(PlayerRenderer.CreateMaterials))]
+        [HarmonyPostfix]
+        internal static void Postfix(PlayerRenderer __instance, int amount)
+        {
+            if(__instance.skinData == null) return;
+            var characterData = __instance.characterData;
+            bool isCustom = !String.IsNullOrEmpty(__instance.skinData.author);
+            var log = InjectComponent.Instance.Log;
+            var defaultMaterial = InjectComponent.Instance.DefaultMaterial;
+            
+        
+            if (isCustom)
+            {
+                
+                var materials = __instance.skinData.materials;
+                var finalMaterials = new Il2CppReferenceArray<Material>((long)materials.Length);
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    var material = materials[i];
+                    if (material.shader.name.EndsWith("MegabonkShader"))
+                    {
+                        material = defaultMaterial;
+                    }
+                    finalMaterials[i] = material;
+                }
+                __instance.activeMaterials = finalMaterials;
+                var matList = new Il2CppSystem.Collections.Generic.List<Material>();
+                foreach (var mat in finalMaterials)
+                {
+                    __instance.allMaterials.Add(mat);
+                    log.LogInfo(mat.name);
+                }
+                __instance.allMaterials = matList;
+                __instance.renderer.materials = finalMaterials;
+        
+            }
+            else
+            {
+                // if(__instance.skinData?.materials != null)
+                //     __instance.activeMaterials = __instance.skinData.materials;
+            }
+        
         }
     }
     [HarmonyPatch()]
@@ -171,10 +217,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
 
         internal static void UpdatePlayerRendererWithNewGameObject(GameObject prefab, PlayerRenderer pRenderer)
         {
-            //don't update if gameobject is same as clone   
-            //var log = InjectComponent.Instance.Log;
-            //log.LogInfo($"pRenderer: {pRenderer.name}");
-            //log.LogInfo($"new gameObject: {prefab?.name}");
+
 
             var newMesh =  prefab.GetComponentInChildren<SkinnedMeshRenderer>();
             var originalMesh = pRenderer.renderer;
@@ -194,11 +237,15 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             pRenderer.hips = newMesh.rootBone;
             pRenderer.animator = instancedPrefab.GetComponent<Animator>();
             pRenderer.torso = null;
+            //pRenderer.activeMaterials = pRenderer.renderer.materials;
+            var matList = new Il2CppSystem.Collections.Generic.List<Material>(pRenderer.renderer.materials.Count);
+            foreach (var m in pRenderer.renderer.materials)
+                matList.Add(m);
+            //pRenderer.allMaterials = matList;
             GameObject.Destroy(originalGameObject);
             
             //update CharacterData with original gameobject reference so it works in game
             pRenderer.characterData.prefab = prefab;
-            
         }
 
     }
@@ -224,7 +271,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         public static InjectComponent Instance;
         public ManualLogSource Log;
         public List<ECharacter> AddedCharacters;
-        public List<CharacterData> CharacterReferences = new List<CharacterData>();
+        public Material DefaultMaterial;
 
         public Dictionary<SkinData, GameObject> SkinRenderObjects = new Dictionary<SkinData, GameObject>();
         
@@ -235,14 +282,74 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         //needs to be added in IL2CPP to register properly I think
         public InjectComponent(IntPtr handle) : base(handle) { }
 
+        void Update()
+        {
+            if (UnityEngine.Input.GetKeyDown(KeyCode.H))
+            {
+                
+                //var animatorController = DataManager.Instance.characterData[ECharacter.Fox]?.prefab?.GetComponent<Animator>();
+                var playerRenderer = MyPlayer.Instance.playerRenderer;
+                var shader = playerRenderer.activeMaterials[0]?.shader;
+                if (shader != null)
+                {
+                    var count = shader.GetPropertyCount();
+                    for (int i = 0; i < count; i++)
+                    {
+                        var name = shader.GetPropertyName(i);
+                        var type = shader.GetPropertyType(i);
+                        if (type == ShaderPropertyType.Float)
+                        {
+                            var value = shader.GetPropertyDefaultFloatValue(i);
+                            Log.LogInfo($"{name} (\"{name}\", {type}) = {value}");
+                        }
+                        else if (type == ShaderPropertyType.Range)
+                        {
+                            var value = shader.GetPropertyDefaultFloatValue(i);
+                            var range = shader.GetPropertyRangeLimits(i);
+                            Log.LogInfo($"{name} (\"{name}\", Range({range[0]},{range[1]})) = {value}");
+                        }else if (type == ShaderPropertyType.Vector)
+                        {
+                            var value = shader.GetPropertyDefaultVectorValue(i);
+                            var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
+                            Log.LogInfo($"{name} (\"{name}\", Vector) = {valueStr}");
+                        }else if (type == ShaderPropertyType.Color)
+                        {
+                            var value = shader.GetPropertyDefaultVectorValue(i);
+                            var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
+                            Log.LogInfo($"{name} (\"{name}\", Color) = {valueStr}");
+                        }else if (type == ShaderPropertyType.Texture)
+                        {
+                            var dimension = shader.GetPropertyTextureDimension(i);
+                            var defaultName = shader.GetPropertyTextureDefaultName(i);
+                            if (dimension == TextureDimension.Tex2D)
+                            {
+                                Log.LogInfo($"{name} (\"{name}\", 2D) = \"{defaultName}\" {{}}");
+
+                            }
+                            else
+                            {
+                                Log.LogInfo($"{name} (\"{name}\", {dimension})");
+                            }
+                        }
+                        
+                    }
+                }
+
+            }
+        }
+
 
         public void LoadCustomCreations()
         {
-
+            
             var dataManager = DataManager.Instance;
             var paths = FindCustomCharacterPaths();
             AddedCharacters = new List<ECharacter>();
 
+            
+            //Get default material
+            DefaultMaterial = dataManager.skinData[ECharacter.Fox]._items[0].materials[0];
+            
             //Setup custom skin manager
             SetupCustomSkinLoader(dataManager);
             
