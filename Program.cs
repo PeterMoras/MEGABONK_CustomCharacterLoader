@@ -34,7 +34,7 @@ using Path = Il2CppSystem.IO.Path;
 using SearchOption = System.IO.SearchOption;
 using StreamReader = Il2CppSystem.IO.StreamReader;
 
-[assembly: MelonInfo(typeof(CustomCharacterLoaderPlugin), "CustomCharacterLoader", "1.2.0", "PeterM")]
+[assembly: MelonInfo(typeof(CustomCharacterLoaderPlugin), "CustomCharacterLoader", "1.2.1", "PeterM")]
  [assembly: MelonGame("Ved", "Megabonk")]
  [assembly: MelonColor(255,32,32,200)]
 
@@ -440,11 +440,11 @@ public class CustomCharacterLoaderPlugin : MelonMod
         public static string[] FindCustomCharacterPaths()
         {
             var customCharacterPath = Path.Combine("Mods", CUSTOM_CHARACTER_FOLDER);
-            string[] assetPaths = Il2CppSystem.IO.Directory.GetFiles(customCharacterPath, "*.json");
+            var assetPaths = Il2CppSystem.IO.Directory.GetFiles(customCharacterPath, "*.json").ToHashSet();
 
-            string[] additionalCharacters = Il2CppSystem.IO.Directory.GetFiles("Mods", "*.custom.json", new EnumerationOptions(){ RecurseSubdirectories = true });
-            
-            return assetPaths.Concat(additionalCharacters).ToArray();
+            var additionalCharacters = Il2CppSystem.IO.Directory.GetFiles("Mods", "*.custom.json", new EnumerationOptions(){ RecurseSubdirectories = true });
+            assetPaths.UnionWith(additionalCharacters);
+            return assetPaths.ToArray();
         }
    
         
