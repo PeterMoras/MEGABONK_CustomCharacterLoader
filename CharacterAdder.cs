@@ -1,19 +1,20 @@
-﻿using Assets.Scripts.Audio.Music;
-using Assets.Scripts.Inventory__Items__Pickups.AbilitiesPassive;
-using Assets.Scripts.Inventory__Items__Pickups.Stats;
-using Assets.Scripts.Inventory__Items__Pickups.Upgrades;
-using Assets.Scripts.Menu.Shop;
-using Assets.Scripts.Saves___Serialization.Progression;
-using BepInEx;
-using BepInEx.Logging;
+﻿
+
+using Il2Cpp;
+using Il2CppAssets.Scripts.Audio.Music;
+using Il2CppAssets.Scripts.Inventory__Items__Pickups.AbilitiesPassive;
+using Il2CppAssets.Scripts.Inventory__Items__Pickups.Stats;
+using Il2CppAssets.Scripts.Inventory__Items__Pickups.Upgrades;
+using Il2CppAssets.Scripts.Menu.Shop;
+using Il2CppAssets.Scripts.Saves___Serialization.Progression;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Il2CppNewtonsoft.Json.Linq;
+using MelonLoader;
 using UnityEngine;
 using UnityEngine.Localization;
 using Object = UnityEngine.Object;
-using StatModifier = Assets.Scripts.Inventory__Items__Pickups.Stats.StatModifier;
+
 
 namespace CustomCharacterLoader;
 
@@ -23,14 +24,14 @@ public class CharacterAdder
     private readonly JObject _assetJSON;
     private readonly AssetBundle _assetBundle;
     private uint _eCharacter;
-    private ManualLogSource Log;
+    private MelonLogger.Instance Log;
     private string _author;
-    public CharacterAdder(DataManager dataManager, JObject assetJson, AssetBundle assetBundle, ManualLogSource Log)
+    public CharacterAdder(DataManager dataManager, JObject assetJson, AssetBundle assetBundle)
     {
         _dataManager = dataManager;
         _assetJSON = assetJson;
         _assetBundle = assetBundle;
-        this.Log = Log;
+        Log = Melon<CustomCharacterLoaderPlugin>.Logger;
     }
     
     public ECharacter AddCustomCharacter()
@@ -68,7 +69,7 @@ public class CharacterAdder
         _dataManager.unsortedUnlockables.Add(weapon);
 
         
-        Log.LogInfo("Loaded Custom Character: " + character.name);
+        Log.Msg("Loaded Custom Character: " + character.name);
         
         return (ECharacter) _eCharacter;
     }

@@ -1,28 +1,18 @@
 ﻿
-using Assets.Scripts.Actors.Player;
-using Assets.Scripts.Game.Combat;
-using Assets.Scripts.Inventory__Items__Pickups.AbilitiesPassive;
-using Assets.Scripts.Inventory__Items__Pickups.AbilitiesPassive.Implementations;
-using Assets.Scripts.Inventory__Items__Pickups.Stats;
-using Assets.Scripts.Inventory__Items__Pickups.Upgrades;
-using Assets.Scripts.Inventory__Items__Pickups.Weapons.Attacks;
-using Assets.Scripts.Managers;
-using Assets.Scripts.Menu.Shop;
-using Assets.Scripts.Saves___Serialization.Progression.Achievements;
-using Assets.Scripts.Saves___Serialization.Progression.Unlocks;
-using BepInEx;
-using BepInEx.Logging;
-using BepInEx.Unity.IL2CPP;
-using BepInEx.Unity.IL2CPP.UnityEngine;
 using CustomCharacterLoader;
 using HarmonyLib;
+using Il2Cpp;
+using Il2CppAssets.Scripts.Actors.Player;
+using Il2CppAssets.Scripts.Saves___Serialization.Progression.Achievements;
+using Il2CppAssets.Scripts.Saves___Serialization.Progression.Unlocks;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Injection;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
+using Il2CppNewtonsoft.Json.Linq;
 using Il2CppSystem.Collections;
 using Il2CppSystem.IO;
 using Il2CppSystem.Reflection;
-using Newtonsoft.Json.Linq;
+using MelonLoader;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.AddressableAssets.ResourceLocators;
@@ -44,38 +34,42 @@ using Path = Il2CppSystem.IO.Path;
 using SearchOption = System.IO.SearchOption;
 using StreamReader = Il2CppSystem.IO.StreamReader;
 
-namespace CustomCharacterLoader;
+[assembly: MelonInfo(typeof(CustomCharacterLoaderPlugin), "CustomCharacterLoader", "1.2.0", "PeterM")]
+ [assembly: MelonGame("Ved", "Megabonk")]
+ [assembly: MelonColor(255,32,32,200)]
 
-[BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, "1.1.0")]
-public class CustomCharacterLoaderPlugin : BasePlugin
+namespace CustomCharacterLoader;
+public class CustomCharacterLoaderPlugin : MelonMod
 {
     public static readonly string CUSTOM_CHARACTER_FOLDER = "CustomCharacters";
-    public static GameObject BepInExUtility;
-    public override void Load()
+    public static GameObject MelonUtility;
+    public override void OnInitializeMelon()
     {
-        var customCharacterPath = Path.Combine(Paths.PluginPath, CUSTOM_CHARACTER_FOLDER);
-        if (!Directory.Exists(customCharacterPath) && customCharacterPath != null)
-            Directory.CreateDirectory(customCharacterPath);
+        MelonLogger.Msg("OnInitializeMelon");
+        MelonLogger.Msg(Directory.GetCurrentDirectory());
+         var customCharacterPath = Il2CppSystem.IO.Path.Combine("Mods", CUSTOM_CHARACTER_FOLDER);
+         MelonLogger.Msg(customCharacterPath);
+         if (!Directory.Exists(customCharacterPath) && customCharacterPath != null)
+             Directory.CreateDirectory(customCharacterPath);
         
-        ClassInjector.RegisterTypeInIl2Cpp<InjectComponent>();
-        ClassInjector.RegisterTypeInIl2Cpp<MyRefTest>();
-        BepInExUtility = GameObject.Find("BepInExUtility");
-
-        if (BepInExUtility == null)
-        {
-            BepInExUtility = new GameObject("BepInExUtility");
-            GameObject.DontDestroyOnLoad(BepInExUtility);
-            BepInExUtility.hideFlags = HideFlags.HideAndDontSave;
-            BepInExUtility.AddComponent<InjectComponent>();
-        }
-        else BepInExUtility.AddComponent<InjectComponent>();
-        var inject = BepInExUtility.GetComponent<InjectComponent>();
-        inject.Log = this.Log;
-        //inject.assetBundle = mainAssetBundle;
-        InjectComponent.Instance = inject;
-
-        Harmony harmony = new Harmony(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID);
-        harmony.PatchAll();
+         ClassInjector.RegisterTypeInIl2Cpp<InjectComponent>();
+         ClassInjector.RegisterTypeInIl2Cpp<MyRefTest>();
+         MelonUtility = GameObject.Find("MelonUtility");
+        
+         if (MelonUtility == null)
+         {
+             MelonUtility = new GameObject("MelonUtility");
+             GameObject.DontDestroyOnLoad(MelonUtility);
+             MelonUtility.hideFlags = HideFlags.HideAndDontSave;
+             MelonUtility.AddComponent<InjectComponent>();
+         }
+         else MelonUtility.AddComponent<InjectComponent>();
+         var inject = MelonUtility.GetComponent<InjectComponent>();
+         //inject.assetBundle = mainAssetBundle;
+         InjectComponent.Instance = inject;
+        
+         // HarmonyLib.Harmony harmony = new HarmonyLib.Harmony("CustomCharacterLoader");
+         // harmony.PatchAll();
 
     }
 
@@ -106,7 +100,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             if(__instance.skinData == null) return;
             var characterData = __instance.characterData;
             bool isCustom = !String.IsNullOrEmpty(__instance.skinData.author);
-            var log = InjectComponent.Instance.Log;
+            var log = Melon<CustomCharacterLoaderPlugin>.Logger;
             var defaultMaterial = InjectComponent.Instance.DefaultMaterial;
             
         
@@ -129,7 +123,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
                 foreach (var mat in finalMaterials)
                 {
                     __instance.allMaterials.Add(mat);
-                    log.LogInfo(mat.name);
+                    log.Msg(mat.name);
                 }
                 __instance.allMaterials = matList;
                 __instance.renderer.materials = finalMaterials;
@@ -207,7 +201,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             var gameObject = InjectComponent.Instance.GetModelFromSkinData(skinData);
             if (gameObject == null)
             {
-                InjectComponent.Instance.Log.LogInfo("Unable to find game object for "+skinData.name);
+                Melon<CustomCharacterLoaderPlugin>.Logger.Msg("Unable to find game object for "+skinData.name);
                 return true;
             }
             UpdatePlayerRendererWithNewGameObject(gameObject, __instance);
@@ -269,7 +263,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
     public class InjectComponent : MonoBehaviour
     {
         public static InjectComponent Instance;
-        public ManualLogSource Log;
+        //public ManualLogSource Log;
         public List<ECharacter> AddedCharacters;
         public Material DefaultMaterial;
 
@@ -300,35 +294,35 @@ public class CustomCharacterLoaderPlugin : BasePlugin
                         if (type == ShaderPropertyType.Float)
                         {
                             var value = shader.GetPropertyDefaultFloatValue(i);
-                            Log.LogInfo($"{name} (\"{name}\", {type}) = {value}");
+                            Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", {type}) = {value}");
                         }
                         else if (type == ShaderPropertyType.Range)
                         {
                             var value = shader.GetPropertyDefaultFloatValue(i);
                             var range = shader.GetPropertyRangeLimits(i);
-                            Log.LogInfo($"{name} (\"{name}\", Range({range[0]},{range[1]})) = {value}");
+                            Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", Range({range[0]},{range[1]})) = {value}");
                         }else if (type == ShaderPropertyType.Vector)
                         {
                             var value = shader.GetPropertyDefaultVectorValue(i);
                             var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
-                            Log.LogInfo($"{name} (\"{name}\", Vector) = {valueStr}");
+                            Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", Vector) = {valueStr}");
                         }else if (type == ShaderPropertyType.Color)
                         {
                             var value = shader.GetPropertyDefaultVectorValue(i);
                             var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
-                            Log.LogInfo($"{name} (\"{name}\", Color) = {valueStr}");
+                            Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", Color) = {valueStr}");
                         }else if (type == ShaderPropertyType.Texture)
                         {
                             var dimension = shader.GetPropertyTextureDimension(i);
                             var defaultName = shader.GetPropertyTextureDefaultName(i);
                             if (dimension == TextureDimension.Tex2D)
                             {
-                                Log.LogInfo($"{name} (\"{name}\", 2D) = \"{defaultName}\" {{}}");
+                                Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", 2D) = \"{defaultName}\" {{}}");
 
                             }
                             else
                             {
-                                Log.LogInfo($"{name} (\"{name}\", {dimension})");
+                                Melon<CustomCharacterLoaderPlugin>.Logger.Msg($"{name} (\"{name}\", {dimension})");
                             }
                         }
                         
@@ -353,7 +347,9 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             //Setup custom skin manager
             SetupCustomSkinLoader(dataManager);
             
-            Log.LogInfo("Loading Custom Creations");
+            Melon<CustomCharacterLoaderPlugin>.Logger.Msg("Loading Custom Creations");
+            MelonLogger.Msg(Directory.GetCurrentDirectory());
+            
             foreach (var jsonPath in paths)
             {
                 int endPos = jsonPath.LastIndexOf('.');
@@ -374,12 +370,12 @@ public class CustomCharacterLoaderPlugin : BasePlugin
                 switch (customType)
                 {
                     case CustomType.Character:
-                        var reader = new CharacterAdder(dataManager, jsonObject, assetBundle, Log);
+                        var reader = new CharacterAdder(dataManager, jsonObject, assetBundle);
                         var eCharacter = reader.AddCustomCharacter();
                         AddedCharacters.Add(eCharacter);
                         break;
                     case CustomType.Skin:
-                        SkinAdder.AddSkinToGame(jsonObject, assetBundle, this, dataManager, Log);
+                        SkinAdder.AddSkinToGame(jsonObject, assetBundle, this, dataManager);
                         break;
                     default:
                         break;
@@ -445,10 +441,10 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         
         public static string[] FindCustomCharacterPaths()
         {
-            var customCharacterPath = Path.Combine(Paths.PluginPath, CUSTOM_CHARACTER_FOLDER);
+            var customCharacterPath = Path.Combine("Mods", CUSTOM_CHARACTER_FOLDER);
             string[] assetPaths = Il2CppSystem.IO.Directory.GetFiles(customCharacterPath, "*.json");
 
-            string[] additionalCharacters = Il2CppSystem.IO.Directory.GetFiles(Paths.PluginPath, "*.custom.json", new EnumerationOptions(){ RecurseSubdirectories = true });
+            string[] additionalCharacters = Il2CppSystem.IO.Directory.GetFiles("Mods", "*.custom.json", new EnumerationOptions(){ RecurseSubdirectories = true });
             
             return assetPaths.Concat(additionalCharacters).ToArray();
         }
