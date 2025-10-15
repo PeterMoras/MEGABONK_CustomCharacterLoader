@@ -37,13 +37,13 @@ public class CharacterAdder
     {
         //Load character must be run first because it gets the necessary meta info
         var character = LoadCharacter();
-        //Log.LogInfo("Loaded character data");
+        Log.LogDebug("Loaded character data");
         var skins = LoadSkins();
-        //Log.LogInfo("Loaded skin data");
+        Log.LogDebug("Loaded skin data");
         var passive = LoadPassive();
-        //Log.LogInfo("Loaded passive data");
+        Log.LogDebug("Loaded passive data");
         var weapon = LoadWeapon();
-        //Log.LogInfo("Loaded weapon data");
+        Log.LogDebug("Loaded weapon data");
         character.passive = passive;
         character.weapon = weapon;
         
@@ -78,7 +78,7 @@ public class CharacterAdder
         JSkin[] jSkins = JSkin.FromJSON(_assetJSON["skins"].Cast<JArray>()) ;
         Il2CppSystem.Collections.Generic.List<SkinData> skins = new Il2CppSystem.Collections.Generic.List<SkinData>();
         _dataManager.skinData.Add((ECharacter)_eCharacter, skins);
-        //Log.LogInfo("Skin count: "+jSkins.Length);
+        Log.LogDebug("Skin count: "+jSkins.Length);
         int count = 0;
         foreach (var jskin in jSkins)
         {
@@ -154,22 +154,21 @@ public class CharacterAdder
         character.author = jCharacter.author;
         character.eCharacter = (ECharacter) jCharacter.eCharacter;
         character.name = jCharacter.characterName;
-        //Log.LogInfo(character.name);
+        Log.LogDebug(character.name);
         character.localizedName = CreateUniqueLocalizedString("characterName",jCharacter.characterName);
         //Log.LogInfo(character.localizedName.GetLocalizedString());
         character.serializedLocalizationKeysName = new Il2CppSystem.Collections.Generic.List<LocalizationKey>() { };
         character.serializedLocalizationKeys = new Il2CppSystem.Collections.Generic.List<LocalizationKey>() { };
 
         character.description = jCharacter.characterDescription;
-        //Log.LogInfo(character.description);
+        //Log.LogDebug(character.description);
         // character.achievementRequirement = _dataManager.achievementsData["a_clank"];
         character.localizedDescription = CreateUniqueLocalizedString("characterDescription",jCharacter.characterDescription);
         character.colliderHeight = jCharacter.colliderHeight;
         character.colliderWidth = jCharacter.colliderWidth;
         character.coolness = jCharacter.coolness;
         character.difficulty = jCharacter.difficulty;
-        if(jCharacter.themeSongPath != null)
-            character.themeSong = LoadAsset<MusicTrack>(jCharacter.themeSongPath);
+        
         character.prefab = LoadAsset<GameObject>(jCharacter.prefabPath);
         character.icon = LoadAsset<Texture2D>(jCharacter.iconPath);
         character.statModifiers = jCharacter.statModifiers;
@@ -179,16 +178,18 @@ public class CharacterAdder
         {
             character.categoryRatios[category.category] = category.value;
         }
-
+        Log.LogDebug("Try loading audio");
+        if(!String.IsNullOrEmpty(jCharacter.themeSongPath))
+            character.themeSong = LoadAsset<MusicTrack>(jCharacter.themeSongPath);
         if (jCharacter.audioFootstepsPaths != null)
         {
-            character.audioFootsteps = new Il2CppReferenceArray<AudioClip>(jCharacter.audioFootstepsPaths.Count);
+            character.audioFootsteps = new AudioClip[jCharacter.audioFootstepsPaths.Count];
             for (int i = 0; i < jCharacter.audioFootstepsPaths.Count; i++)
             {
                 character.audioFootsteps[i] = LoadAsset<AudioClip>(jCharacter.audioFootstepsPaths[i]);
             }
         }
-
+        
         
         
         // Log.LogInfo("Does character still exist?");

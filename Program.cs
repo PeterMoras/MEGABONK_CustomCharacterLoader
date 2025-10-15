@@ -46,7 +46,7 @@ using StreamReader = Il2CppSystem.IO.StreamReader;
 
 namespace CustomCharacterLoader;
 
-[BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, "1.1.0")]
+[BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, "1.2.1")]
 public class CustomCharacterLoaderPlugin : BasePlugin
 {
     public static readonly string CUSTOM_CHARACTER_FOLDER = "CustomCharacters";
@@ -286,55 +286,58 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         {
             if (UnityEngine.Input.GetKeyDown(KeyCode.H))
             {
-                
                 //var animatorController = DataManager.Instance.characterData[ECharacter.Fox]?.prefab?.GetComponent<Animator>();
-                var playerRenderer = MyPlayer.Instance.playerRenderer;
-                var shader = playerRenderer.activeMaterials[0]?.shader;
-                if (shader != null)
+                //AnalyzeShaderProperties();
+            }
+        }
+
+        private void AnalyzeShaderProperties()
+        {
+            var playerRenderer = MyPlayer.Instance.playerRenderer;
+            var shader = playerRenderer.activeMaterials[0]?.shader;
+            if (shader != null)
+            {
+                var count = shader.GetPropertyCount();
+                for (int i = 0; i < count; i++)
                 {
-                    var count = shader.GetPropertyCount();
-                    for (int i = 0; i < count; i++)
+                    var name = shader.GetPropertyName(i);
+                    var type = shader.GetPropertyType(i);
+                    if (type == ShaderPropertyType.Float)
                     {
-                        var name = shader.GetPropertyName(i);
-                        var type = shader.GetPropertyType(i);
-                        if (type == ShaderPropertyType.Float)
-                        {
-                            var value = shader.GetPropertyDefaultFloatValue(i);
-                            Log.LogInfo($"{name} (\"{name}\", {type}) = {value}");
-                        }
-                        else if (type == ShaderPropertyType.Range)
-                        {
-                            var value = shader.GetPropertyDefaultFloatValue(i);
-                            var range = shader.GetPropertyRangeLimits(i);
-                            Log.LogInfo($"{name} (\"{name}\", Range({range[0]},{range[1]})) = {value}");
-                        }else if (type == ShaderPropertyType.Vector)
-                        {
-                            var value = shader.GetPropertyDefaultVectorValue(i);
-                            var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
-                            Log.LogInfo($"{name} (\"{name}\", Vector) = {valueStr}");
-                        }else if (type == ShaderPropertyType.Color)
-                        {
-                            var value = shader.GetPropertyDefaultVectorValue(i);
-                            var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
-                            Log.LogInfo($"{name} (\"{name}\", Color) = {valueStr}");
-                        }else if (type == ShaderPropertyType.Texture)
-                        {
-                            var dimension = shader.GetPropertyTextureDimension(i);
-                            var defaultName = shader.GetPropertyTextureDefaultName(i);
-                            if (dimension == TextureDimension.Tex2D)
-                            {
-                                Log.LogInfo($"{name} (\"{name}\", 2D) = \"{defaultName}\" {{}}");
-
-                            }
-                            else
-                            {
-                                Log.LogInfo($"{name} (\"{name}\", {dimension})");
-                            }
-                        }
-                        
+                        var value = shader.GetPropertyDefaultFloatValue(i);
+                        Log.LogInfo($"{name} (\"{name}\", {type}) = {value}");
                     }
-                }
+                    else if (type == ShaderPropertyType.Range)
+                    {
+                        var value = shader.GetPropertyDefaultFloatValue(i);
+                        var range = shader.GetPropertyRangeLimits(i);
+                        Log.LogInfo($"{name} (\"{name}\", Range({range[0]},{range[1]})) = {value}");
+                    }else if (type == ShaderPropertyType.Vector)
+                    {
+                        var value = shader.GetPropertyDefaultVectorValue(i);
+                        var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
+                        Log.LogInfo($"{name} (\"{name}\", Vector) = {valueStr}");
+                    }else if (type == ShaderPropertyType.Color)
+                    {
+                        var value = shader.GetPropertyDefaultVectorValue(i);
+                        var valueStr = $"({value[0]},{value[1]},{value[2]},{value[3]})";
+                        Log.LogInfo($"{name} (\"{name}\", Color) = {valueStr}");
+                    }else if (type == ShaderPropertyType.Texture)
+                    {
+                        var dimension = shader.GetPropertyTextureDimension(i);
+                        var defaultName = shader.GetPropertyTextureDefaultName(i);
+                        if (dimension == TextureDimension.Tex2D)
+                        {
+                            Log.LogInfo($"{name} (\"{name}\", 2D) = \"{defaultName}\" {{}}");
 
+                        }
+                        else
+                        {
+                            Log.LogInfo($"{name} (\"{name}\", {dimension})");
+                        }
+                    }
+                        
+                }
             }
         }
 
@@ -446,11 +449,10 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         public static string[] FindCustomCharacterPaths()
         {
             var customCharacterPath = Path.Combine(Paths.PluginPath, CUSTOM_CHARACTER_FOLDER);
-            string[] assetPaths = Il2CppSystem.IO.Directory.GetFiles(customCharacterPath, "*.json");
-
-            string[] additionalCharacters = Il2CppSystem.IO.Directory.GetFiles(Paths.PluginPath, "*.custom.json", new EnumerationOptions(){ RecurseSubdirectories = true });
-            
-            return assetPaths.Concat(additionalCharacters).ToArray();
+            var assetPaths = Il2CppSystem.IO.Directory.GetFiles(customCharacterPath, "*.json").ToHashSet();
+            var additionalCharacters = Il2CppSystem.IO.Directory.GetFiles(Paths.PluginPath, "*.custom.json", new EnumerationOptions(){ RecurseSubdirectories = true });
+            assetPaths.UnionWith(additionalCharacters);
+            return assetPaths.ToArray();
         }
    
         
