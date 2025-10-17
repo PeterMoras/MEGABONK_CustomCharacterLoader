@@ -87,13 +87,16 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         internal static bool Prefix(DataManager __instance, ECharacter character, int savedIndex,ref SkinData __result)
         {
             var skins = __instance.GetSkins(character);
+            // InjectComponent.Instance.Log.LogInfo($"skin data: index - {savedIndex} | count - {skins.Count}");
+
             if (savedIndex >= 0 && savedIndex < skins.Count)
             {
                 __result = skins._items[savedIndex];
             }
             else
             {
-                __result = skins._items[0];
+                if (skins.Count <= 0) __result = null;
+                else __result = skins._items[0];
             }
 
             return false;
@@ -114,7 +117,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             {
                 
                 var materials = __instance.skinData.materials;
-                var finalMaterials = new Il2CppReferenceArray<Material>((long)materials.Length);
+                var finalMaterials = new Material[(long)materials.Length];
                 for (int i = 0; i < materials.Length; i++)
                 {
                     var material = materials[i];
@@ -129,7 +132,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
                 foreach (var mat in finalMaterials)
                 {
                     __instance.allMaterials.Add(mat);
-                    log.LogInfo(mat.name);
+                    // log.LogInfo(mat.name);
                 }
                 __instance.allMaterials = matList;
                 __instance.renderer.materials = finalMaterials;
@@ -153,6 +156,15 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             __result = !SaveManager.Instance.progression.inactivated.Contains(unlockable.GetInternalName());
             return false; // stop original
         }
+        [HarmonyPatch(typeof(MyAchievements), nameof(MyAchievements.IsAvailable))]
+        [HarmonyPrefix]
+        private static bool IsAvailablePrefix(ref bool __result, UnlockableBase unlockable)
+        {
+            __result = MyAchievements.IsActivated(unlockable) && MyAchievements.IsPurchased(unlockable);
+            return false; // stop original
+        }
+        
+        
         [HarmonyPatch(typeof(MyAchievements),nameof(MyAchievements.CanToggleActivation))]
         [HarmonyPrefix]
         internal static bool Prefix(DataManager __instance, UnlockableBase unlockable, ref bool __result)
@@ -205,6 +217,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         internal static bool Prefix(PlayerRenderer __instance, SkinData skinData)
         {
             var gameObject = InjectComponent.Instance.GetModelFromSkinData(skinData);
+            //InjectComponent.Instance.Log.LogInfo("SkinData: "+skinData?.name);
             if (gameObject == null)
             {
                 InjectComponent.Instance.Log.LogInfo("Unable to find game object for "+skinData.name);
@@ -227,21 +240,25 @@ public class CustomCharacterLoaderPlugin : BasePlugin
                 //InjectComponent.Instance.Log.LogInfo("Same Mesh as original, dont update");
                 return;
             }
-
+            InjectComponent.Instance.Log.LogInfo("try to update model");
             var instancedPrefab = GameObject.Instantiate(prefab, pRenderer.transform);
             instancedPrefab.transform.localPosition = Vector3.zero;
-            newMesh =  prefab.GetComponentInChildren<SkinnedMeshRenderer>();
+            InjectComponent.Instance.Log.LogInfo("instantiate");
+
+            //newMesh =  prefab.GetComponentInChildren<SkinnedMeshRenderer>();
             //update values 
             pRenderer.rendererObject = instancedPrefab;
             pRenderer.renderer = newMesh;
             pRenderer.hips = newMesh.rootBone;
             pRenderer.animator = instancedPrefab.GetComponent<Animator>();
             pRenderer.torso = null;
+            
             //pRenderer.activeMaterials = pRenderer.renderer.materials;
-            var matList = new Il2CppSystem.Collections.Generic.List<Material>(pRenderer.renderer.materials.Count);
-            foreach (var m in pRenderer.renderer.materials)
-                matList.Add(m);
+            // var matList = new Il2CppSystem.Collections.Generic.List<Material>(pRenderer.renderer.materials.Count);
+            // foreach (var m in pRenderer.renderer.materials)
+            //     matList.Add(m);
             //pRenderer.allMaterials = matList;
+            
             GameObject.Destroy(originalGameObject);
             
             //update CharacterData with original gameobject reference so it works in game
