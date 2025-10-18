@@ -1,4 +1,5 @@
 ﻿
+using Abcight;
 using Assets.Scripts.Actors.Player;
 using Assets.Scripts.Game.Combat;
 using Assets.Scripts.Inventory__Items__Pickups.AbilitiesPassive;
@@ -9,7 +10,9 @@ using Assets.Scripts.Inventory__Items__Pickups.Weapons.Attacks;
 using Assets.Scripts.Managers;
 using Assets.Scripts.Menu.Shop;
 using Assets.Scripts.Saves___Serialization.Progression.Achievements;
+using Assets.Scripts.Saves___Serialization.Progression.Stats;
 using Assets.Scripts.Saves___Serialization.Progression.Unlocks;
+using Assets.Scripts.UI.Localization;
 using BepInEx;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
@@ -46,7 +49,7 @@ using StreamReader = Il2CppSystem.IO.StreamReader;
 
 namespace CustomCharacterLoader;
 
-[BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, "1.2.2")]
+[BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, "1.2.3")]
 public class CustomCharacterLoaderPlugin : BasePlugin
 {
     public static readonly string CUSTOM_CHARACTER_FOLDER = "CustomCharacters";
@@ -58,7 +61,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             Directory.CreateDirectory(customCharacterPath);
         
         ClassInjector.RegisterTypeInIl2Cpp<InjectComponent>();
-        ClassInjector.RegisterTypeInIl2Cpp<MyRefTest>();
+        ClassInjector.RegisterTypeInIl2Cpp<PhysicsBone>();
         BepInExUtility = GameObject.Find("BepInExUtility");
 
         if (BepInExUtility == null)
@@ -179,7 +182,37 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             return true;
         }
     }
-    
+
+    [HarmonyPatch()]
+    public static class ShowCorrectCustomDamageSourcePatch
+    {
+        [HarmonyPatch(typeof(LocalizationUtility), nameof(LocalizationUtility.GetLocalizedDamageSource))]
+        [HarmonyPrefix]
+        internal static bool Prefix(LocalizationUtility __instance, ref string __result, string source)
+        {
+            //is custom weapon?
+            if (InjectComponent.Instance.CustomWeapons.TryGetValue(source, out var customWeapon))
+            {
+                __result = customWeapon.name;
+                return false;
+            }
+
+            return true;
+        }
+        [HarmonyPatch(typeof(DamageSource), nameof(DamageSource.GetIcon))]
+        [HarmonyPrefix]
+        internal static bool Prefix(DamageSource __instance, ref Texture __result)
+        {
+            //is custom weapon?
+            if (InjectComponent.Instance.CustomWeapons.TryGetValue(__instance.damageSource, out var customWeapon))
+            {
+                __result = customWeapon.icon;
+                return false;
+            }
+
+            return true;
+        }
+    }
   
     
 
@@ -220,15 +253,15 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             //InjectComponent.Instance.Log.LogInfo("SkinData: "+skinData?.name);
             if (gameObject == null)
             {
-                InjectComponent.Instance.Log.LogInfo("Unable to find game object for "+skinData.name);
+                // InjectComponent.Instance.Log.LogInfo("Unable to find game object for "+skinData.name);
                 return true;
             }
-            UpdatePlayerRendererWithNewGameObject(gameObject, __instance);
+            UpdatePlayerRendererWithNewGameObject(gameObject, __instance, skinData);
             
             return true; //never skip
         }
 
-        internal static void UpdatePlayerRendererWithNewGameObject(GameObject prefab, PlayerRenderer pRenderer)
+        internal static void UpdatePlayerRendererWithNewGameObject(GameObject prefab, PlayerRenderer pRenderer, SkinData skinData)
         {
 
 
@@ -237,32 +270,36 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             var originalGameObject = pRenderer.rendererObject;
             if (newMesh.sharedMesh == originalMesh.sharedMesh)
             {
-                //InjectComponent.Instance.Log.LogInfo("Same Mesh as original, dont update");
+                // InjectComponent.Instance.Log.LogInfo("Same Mesh as original, dont update");
+
                 return;
             }
-            InjectComponent.Instance.Log.LogInfo("try to update model");
             var instancedPrefab = GameObject.Instantiate(prefab, pRenderer.transform);
             instancedPrefab.transform.localPosition = Vector3.zero;
-            InjectComponent.Instance.Log.LogInfo("instantiate");
 
-            //newMesh =  prefab.GetComponentInChildren<SkinnedMeshRenderer>();
             //update values 
+            var skins = DataManager.Instance.skinData[skinData.character];
+            SkinData tempSkinToUse = skinData;
+
+            pRenderer.skinData = tempSkinToUse;
             pRenderer.rendererObject = instancedPrefab;
             pRenderer.renderer = newMesh;
             pRenderer.hips = newMesh.rootBone;
             pRenderer.animator = instancedPrefab.GetComponent<Animator>();
             pRenderer.torso = null;
-            
-            //pRenderer.activeMaterials = pRenderer.renderer.materials;
-            // var matList = new Il2CppSystem.Collections.Generic.List<Material>(pRenderer.renderer.materials.Count);
-            // foreach (var m in pRenderer.renderer.materials)
-            //     matList.Add(m);
-            //pRenderer.allMaterials = matList;
+            // var materials = skinData.materials;
+            // pRenderer.activeMaterials = materials;
+            //  var matList = new Il2CppSystem.Collections.Generic.List<Material>(materials.Count);
+            //  foreach (var m in materials)
+            //      matList.Add(m);
+            // pRenderer.allMaterials = matList;
+            // pRenderer.renderer.materials = materials;
             
             GameObject.Destroy(originalGameObject);
             
             //update CharacterData with original gameobject reference so it works in game
             pRenderer.characterData.prefab = prefab;
+
         }
 
     }
@@ -289,6 +326,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         public ManualLogSource Log;
         public List<ECharacter> AddedCharacters;
         public Material DefaultMaterial;
+        public Dictionary<string, WeaponData> CustomWeapons = new Dictionary<string, WeaponData>();
 
         public Dictionary<SkinData, GameObject> SkinRenderObjects = new Dictionary<SkinData, GameObject>();
         
@@ -306,6 +344,11 @@ public class CustomCharacterLoaderPlugin : BasePlugin
                 //var animatorController = DataManager.Instance.characterData[ECharacter.Fox]?.prefab?.GetComponent<Animator>();
                 //AnalyzeShaderProperties();
             }
+        }
+
+        public void AddCustomWeapon(WeaponData weapon)
+        {
+            CustomWeapons.Add(weapon.damageSourceName, weapon);
         }
 
         private void AnalyzeShaderProperties()

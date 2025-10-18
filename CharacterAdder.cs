@@ -60,6 +60,7 @@ public class CharacterAdder
         
         _dataManager.weapons.Add(eWeapon, weapon);
         EffectManager.weaponNamesCache.Add(eWeapon,weapon.name);
+        CustomCharacterLoaderPlugin.InjectComponent.Instance.AddCustomWeapon(weapon);
 
         //add character to character list
         _dataManager.unsortedCharacterData.Add(character);
