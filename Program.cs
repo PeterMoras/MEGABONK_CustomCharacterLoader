@@ -1,5 +1,4 @@
 ﻿
-using Abcight;
 using Assets.Scripts.Actors.Player;
 using Assets.Scripts.Game.Combat;
 using Assets.Scripts.Inventory__Items__Pickups.AbilitiesPassive;
@@ -49,7 +48,7 @@ using StreamReader = Il2CppSystem.IO.StreamReader;
 
 namespace CustomCharacterLoader;
 
-[BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, "1.2.3")]
+[BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, "1.3.0")]
 public class CustomCharacterLoaderPlugin : BasePlugin
 {
     public static readonly string CUSTOM_CHARACTER_FOLDER = "CustomCharacters";
@@ -61,7 +60,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             Directory.CreateDirectory(customCharacterPath);
         
         ClassInjector.RegisterTypeInIl2Cpp<InjectComponent>();
-        ClassInjector.RegisterTypeInIl2Cpp<PhysicsBone>();
+        ClassInjector.RegisterTypeInIl2Cpp<MyPhysicsBone>();
         BepInExUtility = GameObject.Find("BepInExUtility");
 
         if (BepInExUtility == null)
@@ -123,7 +122,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
                 var finalMaterials = new Material[(long)materials.Length];
                 for (int i = 0; i < materials.Length; i++)
                 {
-                    var material = materials[i];
+                    var material = new Material(materials[i]);
                     if (material.shader.name.EndsWith("MegabonkShader"))
                     {
                         material = defaultMaterial;
@@ -243,9 +242,28 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             }
         }
     }
-    [HarmonyPatch(typeof(PlayerRenderer),nameof(PlayerRenderer.SetSkin),new Type[] { typeof(SkinData) })]
+    [HarmonyPatch()]
     public static class PlayerRendererCustomSkinLoaderPatch
     {
+        [HarmonyPatch(typeof(PlayerRenderer), nameof(PlayerRenderer.SetCharacter))]
+        [HarmonyPostfix]
+        internal static void Postfix(PlayerRenderer __instance, CharacterData characterData,
+            PlayerInventory inventory,
+            Vector3 spawnDir)
+        {
+            var oldPhysBones = characterData.prefab.GetComponentsInChildren<MyPhysicsBone>();
+            var newPhysBones = __instance.rendererObject.GetComponentsInChildren<MyPhysicsBone>();
+            for (int i = 0; i < oldPhysBones.Length; i++)
+            {
+                var oldBone = oldPhysBones[i];
+                var newBone = newPhysBones[i];
+                MyPhysicsBone.CopyValuesTo(oldBone,newBone);
+            }
+            
+        }
+        
+        
+        [HarmonyPatch(typeof(PlayerRenderer),nameof(PlayerRenderer.SetSkin),new Type[] { typeof(SkinData) })]
         [HarmonyPrefix]
         internal static bool Prefix(PlayerRenderer __instance, SkinData skinData)
         {
@@ -263,7 +281,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
 
         internal static void UpdatePlayerRendererWithNewGameObject(GameObject prefab, PlayerRenderer pRenderer, SkinData skinData)
         {
-
+            var log = InjectComponent.Instance.Log;
 
             var newMesh =  prefab.GetComponentInChildren<SkinnedMeshRenderer>();
             var originalMesh = pRenderer.renderer;
@@ -274,8 +292,18 @@ public class CustomCharacterLoaderPlugin : BasePlugin
 
                 return;
             }
+
             var instancedPrefab = GameObject.Instantiate(prefab, pRenderer.transform);
             instancedPrefab.transform.localPosition = Vector3.zero;
+            
+            var oldPhysBones = prefab.GetComponentsInChildren<MyPhysicsBone>();
+            var newPhysBones = instancedPrefab.GetComponentsInChildren<MyPhysicsBone>();
+            for (int i = 0; i < oldPhysBones.Length; i++)
+            {
+                var oldBone = oldPhysBones[i];
+                var newBone = newPhysBones[i];
+                MyPhysicsBone.CopyValuesTo(oldBone,newBone);
+            }
 
             //update values 
             var skins = DataManager.Instance.skinData[skinData.character];
@@ -287,13 +315,20 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             pRenderer.hips = newMesh.rootBone;
             pRenderer.animator = instancedPrefab.GetComponent<Animator>();
             pRenderer.torso = null;
-            // var materials = skinData.materials;
-            // pRenderer.activeMaterials = materials;
-            //  var matList = new Il2CppSystem.Collections.Generic.List<Material>(materials.Count);
-            //  foreach (var m in materials)
-            //      matList.Add(m);
-            // pRenderer.allMaterials = matList;
-            // pRenderer.renderer.materials = materials;
+            var materials = new Material[skinData.materials.Length];
+            var matList = new Il2CppSystem.Collections.Generic.List<Material>(materials.Length);
+
+            for (int i = 0; i < skinData.materials.Length; i++)
+            {
+                var newMat = new Material(skinData.materials[i]);
+                materials[i] = newMat;
+                matList.Add(newMat);
+            }
+            pRenderer.activeMaterials = materials;
+             foreach (var m in materials)
+                 matList.Add(m);
+            pRenderer.allMaterials = matList;
+            pRenderer.renderer.materials = materials;
             
             GameObject.Destroy(originalGameObject);
             

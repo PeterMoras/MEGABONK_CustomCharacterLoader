@@ -171,6 +171,10 @@ public class CharacterAdder
         character.difficulty = jCharacter.difficulty;
         
         character.prefab = LoadAsset<GameObject>(jCharacter.prefabPath);
+        var physBones = (_assetJSON["character"] as JObject)?["physicsBones"] as JArray;
+        if(physBones != null)
+            PhysBoneAdder.SetBonesOnPrefab(character.prefab , physBones);
+
         character.icon = LoadAsset<Texture2D>(jCharacter.iconPath);
         character.statModifiers = jCharacter.statModifiers;
         character.StatCategoryRatios = jCharacter.categoryRatios;

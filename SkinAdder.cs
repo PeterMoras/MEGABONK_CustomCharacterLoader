@@ -45,8 +45,12 @@ public class SkinAdder
             log.LogInfo("Loaded custom skin: "+jSkin.skinName + " for character "+jSkin.eCharacter);
             //SkinData setup complete. Now add it to skinlist in inject component
             var prefab = LoadAsset<GameObject>(jSkin.prefabPath,assetBundle);
+            JArray physBones = jsonObject["soloSkin"]?.Cast<JObject>()["physicsBones"]?.Cast<JArray>();
+            if(physBones != null)
+                PhysBoneAdder.SetBonesOnPrefab(prefab,physBones );
             injectComponent.AddSoloCustomSkin(skin,prefab);
-
+            
+            
         }
         
         

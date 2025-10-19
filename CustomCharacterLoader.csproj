@@ -3,7 +3,7 @@
   <PropertyGroup>
     <GameFolder>F:\Games\Megabonk</GameFolder>
     
-    <Version>1.2.3</Version>
+    <Version>1.3.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <TargetFramework>net8.0</TargetFramework>
