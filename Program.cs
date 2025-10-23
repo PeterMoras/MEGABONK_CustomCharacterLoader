@@ -24,6 +24,8 @@ using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Il2CppSystem.Collections;
 using Il2CppSystem.IO;
 using Il2CppSystem.Reflection;
+using Il2CppSystem.Runtime.InteropServices;
+using JigglePhysics;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -48,11 +50,12 @@ using StreamReader = Il2CppSystem.IO.StreamReader;
 
 namespace CustomCharacterLoader;
 
-[BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, "1.3.0")]
+[BepInPlugin(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID, CustomCharacterLoader.MyPluginInfo.PLUGIN_NAME, "1.4.0")]
 public class CustomCharacterLoaderPlugin : BasePlugin
 {
     public static readonly string CUSTOM_CHARACTER_FOLDER = "CustomCharacters";
     public static GameObject BepInExUtility;
+    public static List<ScriptableObject> ScriptableObjects = new List<ScriptableObject>();
     public override void Load()
     {
         var customCharacterPath = Path.Combine(Paths.PluginPath, CUSTOM_CHARACTER_FOLDER);
@@ -61,7 +64,10 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         
         ClassInjector.RegisterTypeInIl2Cpp<InjectComponent>();
         ClassInjector.RegisterTypeInIl2Cpp<MyPhysicsBone>();
+        ClassInjector.RegisterTypeInIl2Cpp<JiggleSettings>();
         BepInExUtility = GameObject.Find("BepInExUtility");
+        ClassInjector.RegisterTypeInIl2Cpp<JiggleRigBuilder>();
+        ClassInjector.RegisterTypeInIl2Cpp<CachedSphereCollider.DestroyListener>();
 
         if (BepInExUtility == null)
         {
@@ -72,14 +78,15 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         }
         else BepInExUtility.AddComponent<InjectComponent>();
         var inject = BepInExUtility.GetComponent<InjectComponent>();
+        
         inject.Log = this.Log;
         //inject.assetBundle = mainAssetBundle;
         InjectComponent.Instance = inject;
 
         Harmony harmony = new Harmony(CustomCharacterLoader.MyPluginInfo.PLUGIN_GUID);
         harmony.PatchAll();
-
     }
+
 
     [HarmonyPatch()]
     public static class LoadCorrectSkinDataPatch
@@ -258,8 +265,18 @@ public class CustomCharacterLoaderPlugin : BasePlugin
                 var oldBone = oldPhysBones[i];
                 var newBone = newPhysBones[i];
                 MyPhysicsBone.CopyValuesTo(oldBone,newBone);
+                newBone.enabled = false;
             }
+            var oldJiggleRigs = characterData.prefab.GetComponentsInChildren<JiggleRigBuilder>();
+            var newJiggleRigs = __instance.rendererObject.GetComponentsInChildren<JiggleRigBuilder>();
+            PhysBoneAdder.CopyRigsValues(__instance.rendererObject, oldJiggleRigs, newJiggleRigs);
             
+
+            // var rig = __instance.rendererObject.AddComponent<JiggleRigBuilder>();
+            // rig.rootTransform = __instance.rendererObject.transform;
+            // rig.Initialize();
+            // rig.jiggleSettings = ScriptableObject.CreateInstance<JiggleSettings>();
+
         }
         
         
@@ -304,6 +321,9 @@ public class CustomCharacterLoaderPlugin : BasePlugin
                 var newBone = newPhysBones[i];
                 MyPhysicsBone.CopyValuesTo(oldBone,newBone);
             }
+            var oldJiggleRigs = prefab.GetComponentsInChildren<JiggleRigBuilder>();
+            var newJiggleRigs = instancedPrefab.GetComponentsInChildren<JiggleRigBuilder>();
+            PhysBoneAdder.CopyRigsValues(instancedPrefab,oldJiggleRigs, newJiggleRigs);
 
             //update values 
             var skins = DataManager.Instance.skinData[skinData.character];
@@ -354,6 +374,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         stringTable.AddEntry(uid, value);
         return new LocalizedString(stringTable.TableCollectionName, uid);
     }
+    
 
     public class InjectComponent : MonoBehaviour
     {
@@ -362,6 +383,8 @@ public class CustomCharacterLoaderPlugin : BasePlugin
         public List<ECharacter> AddedCharacters;
         public Material DefaultMaterial;
         public Dictionary<string, WeaponData> CustomWeapons = new Dictionary<string, WeaponData>();
+        public Window gcHolder;
+        public Animator scriptGcHolder;
 
         public Dictionary<SkinData, GameObject> SkinRenderObjects = new Dictionary<SkinData, GameObject>();
         
@@ -374,6 +397,7 @@ public class CustomCharacterLoaderPlugin : BasePlugin
 
         void Update()
         {
+
             if (UnityEngine.Input.GetKeyDown(KeyCode.H))
             {
                 //var animatorController = DataManager.Instance.characterData[ECharacter.Fox]?.prefab?.GetComponent<Animator>();
@@ -444,7 +468,6 @@ public class CustomCharacterLoaderPlugin : BasePlugin
             var paths = FindCustomCharacterPaths();
             AddedCharacters = new List<ECharacter>();
 
-            
             //Get default material
             DefaultMaterial = dataManager.skinData[ECharacter.Fox]._items[0].materials[0];
             

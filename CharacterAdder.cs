@@ -174,6 +174,9 @@ public class CharacterAdder
         var physBones = (_assetJSON["character"] as JObject)?["physicsBones"] as JArray;
         if(physBones != null)
             PhysBoneAdder.SetBonesOnPrefab(character.prefab , physBones);
+        JArray jiggleBones = _assetJSON["character"]?.Cast<JObject>()["jiggleBones"]?.Cast<JArray>();
+        if(jiggleBones != null)
+            PhysBoneAdder.SetJiggleOnPrefab(character.prefab, jiggleBones);
 
         character.icon = LoadAsset<Texture2D>(jCharacter.iconPath);
         character.statModifiers = jCharacter.statModifiers;

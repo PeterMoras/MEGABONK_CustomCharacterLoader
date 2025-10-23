@@ -1,4 +1,5 @@
-﻿using Assets.Scripts._Data;
+﻿using System.Runtime.InteropServices;
+using Assets.Scripts._Data;
 using Assets.Scripts.Saves___Serialization.Progression;
 using BepInEx.Logging;
 using Il2CppInterop.Runtime;
@@ -48,6 +49,9 @@ public class SkinAdder
             JArray physBones = jsonObject["soloSkin"]?.Cast<JObject>()["physicsBones"]?.Cast<JArray>();
             if(physBones != null)
                 PhysBoneAdder.SetBonesOnPrefab(prefab,physBones );
+            JArray jiggleBones = jsonObject["soloSkin"]?.Cast<JObject>()["jiggleBones"]?.Cast<JArray>();
+            if(jiggleBones != null)
+                PhysBoneAdder.SetJiggleOnPrefab(prefab, jiggleBones);
             injectComponent.AddSoloCustomSkin(skin,prefab);
             
             
