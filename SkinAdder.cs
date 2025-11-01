@@ -1,11 +1,11 @@
-﻿using Il2Cpp;
-using Il2CppAssets.Scripts._Data;
-using Il2CppAssets.Scripts.Saves___Serialization.Progression;
+﻿using System.Runtime.InteropServices;
+using Assets.Scripts._Data;
+using Assets.Scripts.Saves___Serialization.Progression;
+using BepInEx.Logging;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
-using Il2CppNewtonsoft.Json.Linq;
 using JetBrains.Annotations;
-using MelonLoader;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.Localization;
 
@@ -14,7 +14,7 @@ namespace CustomCharacterLoader;
 public class SkinAdder
 {
 
-    public static void AddSkinToGame(JObject jsonObject, AssetBundle assetBundle, CustomCharacterLoaderPlugin.InjectComponent injectComponent, DataManager dataManager)
+    public static void AddSkinToGame(JObject jsonObject, AssetBundle assetBundle, CustomCharacterLoaderPlugin.InjectComponent injectComponent, DataManager dataManager, ManualLogSource log)
     {
         var jSkin = JSoloSkin.FromJSON(jsonObject["soloSkin"].Cast<JObject>());
         var skin = ScriptableObject.CreateInstance<SkinData>();
@@ -43,11 +43,18 @@ public class SkinAdder
             skin.serializedLocalizationKeysName = new Il2CppSystem.Collections.Generic.List<LocalizationKey>() { };
             skin.serializedLocalizationKeys = new Il2CppSystem.Collections.Generic.List<LocalizationKey>() { };
             
-            Melon<CustomCharacterLoaderPlugin>.Logger.Msg("Loaded custom skin: "+jSkin.skinName + " for character "+jSkin.eCharacter);
+            log.LogInfo("Loaded custom skin: "+jSkin.skinName + " for character "+jSkin.eCharacter);
             //SkinData setup complete. Now add it to skinlist in inject component
             var prefab = LoadAsset<GameObject>(jSkin.prefabPath,assetBundle);
+            JArray physBones = jsonObject["soloSkin"]?.Cast<JObject>()["physicsBones"]?.Cast<JArray>();
+            if(physBones != null)
+                PhysBoneAdder.SetBonesOnPrefab(prefab,physBones );
+            JArray jiggleBones = jsonObject["soloSkin"]?.Cast<JObject>()["jiggleBones"]?.Cast<JArray>();
+            if(jiggleBones != null)
+                PhysBoneAdder.SetJiggleOnPrefab(prefab, jiggleBones);
             injectComponent.AddSoloCustomSkin(skin,prefab);
-
+            
+            
         }
         
         

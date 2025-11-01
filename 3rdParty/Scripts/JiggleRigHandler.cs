@@ -1,0 +1,85 @@
+using System.Collections;
+using System.Collections.Generic;
+using Il2CppInterop.Runtime;
+using JigglePhysics;
+using UnityEngine;
+using UnityEngine.LowLevel;
+using UnityEngine.PlayerLoop;
+
+namespace JigglePhysics {
+public static class JiggleRigHandler {
+    private static bool initialized = false;
+    private static HashSet<JiggleRigBuilder> builders = new HashSet<JiggleRigBuilder>();
+
+    private static void Initialize() {
+        if (initialized) {
+            return;
+        }
+
+        // var rootSystem = PlayerLoop.GetCurrentPlayerLoop();
+        // rootSystem = rootSystem.InjectAt<PostLateUpdate>(
+        //     new PlayerLoopSystem() {
+        //         updateDelegate = ((PlayerLoopSystem.UpdateFunction)(UpdateJiggleRigs)),
+        //         type = Il2CppSystem.Type.GetType(nameof(JiggleRigHandler))
+        //     });
+        // PlayerLoop.SetPlayerLoop(rootSystem);
+        initialized = true;
+    }
+
+    // void LateUpdate()
+    // {
+    //     
+    // }
+
+    private static void UpdateJiggleRigs() {
+        CachedSphereCollider.StartPass();
+        foreach (var builder in builders) {
+            builder.Advance(Time.deltaTime);
+        }
+        CachedSphereCollider.FinishedPass();
+    }
+
+    public static void AddBuilder(JiggleRigBuilder builder) {
+        builders.Add(builder);
+        Initialize();
+    }
+
+    public static void RemoveBuilder(JiggleRigBuilder builder) {
+        builders.Remove(builder);
+    }
+
+    private static PlayerLoopSystem InjectAt<T>(this PlayerLoopSystem self, PlayerLoopSystem systemToInject) {
+        // Have to do this silly index lookup because everything is an immutable struct and must be modified in-place.
+        var postLateUpdateSystemIndex = FindIndexOfSubsystem<T>(self.subSystemList);
+        if (postLateUpdateSystemIndex == -1) {
+            Debug.LogError($"Tried to inject a PlayerLoopSystem ({systemToInject.type}) more than once! Ignoring the second injection.");
+            //throw new UnityException($"Failed to find PlayerLoopSystem with type{typeof(T)}");
+        }
+        List<PlayerLoopSystem> postLateUpdateSubsystems = new List<PlayerLoopSystem>(self.subSystemList[postLateUpdateSystemIndex].subSystemList);
+        foreach (PlayerLoopSystem loop in postLateUpdateSubsystems) {
+            if (loop.type != Il2CppType.Of<JiggleRigBuilder>()) continue;
+            Debug.LogWarning($"Tried to inject a PlayerLoopSystem ({systemToInject.type}) more than once! Ignoring the second injection.");
+            return self; // Already injected!!!
+        }
+        postLateUpdateSubsystems.Insert(0,
+            new PlayerLoopSystem() {
+                updateDelegate = ((PlayerLoopSystem.UpdateFunction)(UpdateJiggleRigs)),
+                type = Il2CppSystem.Type.GetType(nameof(JiggleRigHandler))
+            }
+        );
+        self.subSystemList[postLateUpdateSystemIndex].subSystemList = postLateUpdateSubsystems.ToArray();
+        return self;
+    }
+    
+    private static int FindIndexOfSubsystem<T>(PlayerLoopSystem[] list, int index = -1) {
+        if (list == null) return -1;
+        for (int i = 0; i < list.Length; i++) {
+            if (list[i].type == Il2CppType.Of<T>()) {
+                return i;
+            }
+        }
+        return -1;
+    }
+}
+
+}
