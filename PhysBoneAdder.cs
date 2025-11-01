@@ -1,7 +1,8 @@
 ﻿using Il2CppInterop.Runtime.InteropTypes.Arrays;
+using Il2CppNewtonsoft.Json.Linq;
 using Il2CppSystem.Runtime.InteropServices;
 using JigglePhysics;
-using Newtonsoft.Json.Linq;
+using MelonLoader;
 using UnityEngine;
 using UnityEngine.ProBuilder;
 using Object = System.Object;
@@ -12,8 +13,8 @@ public class PhysBoneAdder
 {
     public static void SetBonesOnPrefab(GameObject prefab, JArray boneJson)
     {
-        var log = CustomCharacterLoaderPlugin.InjectComponent.Instance.Log;
-        log.LogDebug($"Loading {boneJson._values.Count} Phys Bones");
+        var log = Melon<CustomCharacterLoaderPlugin>.Logger;
+        //log.Msg($"Loading {boneJson._values.Count} Phys Bones");
 
         var existingPhysBones = prefab.GetComponentsInChildren<MyPhysicsBone>();
         
@@ -41,11 +42,11 @@ public class PhysBoneAdder
     }
     public static void SetJiggleOnPrefab(GameObject prefab, JArray jiggleBones)
     {
-        var log = CustomCharacterLoaderPlugin.InjectComponent.Instance.Log;
-        log.LogDebug($"Loading {jiggleBones._values.Count} Jiggle Bones");
+        var log = Melon<CustomCharacterLoaderPlugin>.Logger;
+        //log.Msg($"Loading {jiggleBones._values.Count} Jiggle Bones");
         var allColliders = prefab.GetComponentsInChildren<Collider>();
         var existingJiggleRigs = prefab.GetComponentsInChildren<JiggleRigBuilder>().ToList();
-        log.LogDebug($"Found {existingJiggleRigs.Count} Rigs for prefab's children {prefab.name}");
+        //log.Msg($"Found {existingJiggleRigs.Count} Rigs for prefab's children {prefab.name}");
         
         foreach (var jJiggleRig in jiggleBones._values)
         {
@@ -214,7 +215,11 @@ public class PhysBoneAdder
         newRig.wind = oldRig.wind;
         newRig.data = oldRig.data;
         //newRig.rootTransform = oldRig.rootTransform;
-        var newTransformMap = newPrefab.GetComponentsInChildren<Transform>().ToDictionary(tf => tf.name, tf => tf);
+        var newTransformMap = new Dictionary<string, Transform>();// newPrefab.GetComponentsInChildren<Transform>().ToDictionary(tf => tf.name, tf => tf);
+        foreach (var tfTransform in newPrefab.GetComponentsInChildren<Transform>())
+        {
+            newTransformMap.Add(tfTransform.name, tfTransform);
+        }
         
         newRig.rootTransform = newTransformMap[oldRig.rootTransform.name];
         foreach (var collider in oldRig.colliders)

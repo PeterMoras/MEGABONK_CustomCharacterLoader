@@ -1,19 +1,18 @@
-﻿using Assets.Scripts.Audio.Music;
-using Assets.Scripts.Inventory__Items__Pickups.AbilitiesPassive;
-using Assets.Scripts.Inventory__Items__Pickups.Stats;
-using Assets.Scripts.Inventory__Items__Pickups.Upgrades;
-using Assets.Scripts.Menu.Shop;
-using Assets.Scripts.Saves___Serialization.Progression;
-using BepInEx;
-using BepInEx.Logging;
+﻿
+using Il2Cpp;
+using Il2CppAssets.Scripts.Audio.Music;
+using Il2CppAssets.Scripts.Inventory__Items__Pickups.AbilitiesPassive;
+using Il2CppAssets.Scripts.Inventory__Items__Pickups.Stats;
+using Il2CppAssets.Scripts.Inventory__Items__Pickups.Upgrades;
+using Il2CppAssets.Scripts.Menu.Shop;
+using Il2CppAssets.Scripts.Saves___Serialization.Progression;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Il2CppNewtonsoft.Json.Linq;
+using MelonLoader;
 using UnityEngine;
 using UnityEngine.Localization;
 using Object = UnityEngine.Object;
-using StatModifier = Assets.Scripts.Inventory__Items__Pickups.Stats.StatModifier;
 
 namespace CustomCharacterLoader;
 
@@ -23,9 +22,9 @@ public class CharacterAdder
     private readonly JObject _assetJSON;
     private readonly AssetBundle _assetBundle;
     private uint _eCharacter;
-    private ManualLogSource Log;
+    private MelonLogger.Instance Log;
     private string _author;
-    public CharacterAdder(DataManager dataManager, JObject assetJson, AssetBundle assetBundle, ManualLogSource Log)
+    public CharacterAdder(DataManager dataManager, JObject assetJson, AssetBundle assetBundle, MelonLogger.Instance Log)
     {
         _dataManager = dataManager;
         _assetJSON = assetJson;
@@ -37,13 +36,13 @@ public class CharacterAdder
     {
         //Load character must be run first because it gets the necessary meta info
         var character = LoadCharacter();
-        Log.LogDebug("Loaded character data");
+        //Log.LogDebug("Loaded character data");
         var skins = LoadSkins();
-        Log.LogDebug("Loaded skin data");
+        //Log.LogDebug("Loaded skin data");
         var passive = LoadPassive();
-        Log.LogDebug("Loaded passive data");
+        //Log.LogDebug("Loaded passive data");
         var weapon = LoadWeapon();
-        Log.LogDebug("Loaded weapon data");
+        //Log.LogDebug("Loaded weapon data");
         character.passive = passive;
         character.weapon = weapon;
         
@@ -69,7 +68,7 @@ public class CharacterAdder
         _dataManager.unsortedUnlockables.Add(weapon);
 
         
-        Log.LogInfo("Loaded Custom Character: " + character.name);
+        Melon<CustomCharacterLoaderPlugin>.Logger.Msg("Loaded Custom Character: " + character.name);
         
         return (ECharacter) _eCharacter;
     }
@@ -79,7 +78,7 @@ public class CharacterAdder
         JSkin[] jSkins = JSkin.FromJSON(_assetJSON["skins"].Cast<JArray>()) ;
         Il2CppSystem.Collections.Generic.List<SkinData> skins = new Il2CppSystem.Collections.Generic.List<SkinData>();
         _dataManager.skinData.Add((ECharacter)_eCharacter, skins);
-        Log.LogDebug("Skin count: "+jSkins.Length);
+        //Log.LogDebug("Skin count: "+jSkins.Length);
         int count = 0;
         foreach (var jskin in jSkins)
         {
@@ -155,7 +154,7 @@ public class CharacterAdder
         character.author = jCharacter.author;
         character.eCharacter = (ECharacter) jCharacter.eCharacter;
         character.name = jCharacter.characterName;
-        Log.LogDebug(character.name);
+        //Log.LogDebug(character.name);
         character.localizedName = CreateUniqueLocalizedString("characterName",jCharacter.characterName);
         //Log.LogInfo(character.localizedName.GetLocalizedString());
         character.serializedLocalizationKeysName = new Il2CppSystem.Collections.Generic.List<LocalizationKey>() { };
@@ -171,9 +170,9 @@ public class CharacterAdder
         character.difficulty = jCharacter.difficulty;
         
         character.prefab = LoadAsset<GameObject>(jCharacter.prefabPath);
-        var physBones = (_assetJSON["character"] as JObject)?["physicsBones"] as JArray;
-        if(physBones != null)
-            PhysBoneAdder.SetBonesOnPrefab(character.prefab , physBones);
+        // var physBones = (_assetJSON["character"] as JObject)?["physicsBones"] as JArray;
+        // if(physBones != null)
+        //     PhysBoneAdder.SetBonesOnPrefab(character.prefab , physBones);
         JArray jiggleBones = _assetJSON["character"]?.Cast<JObject>()["jiggleBones"]?.Cast<JArray>();
         if(jiggleBones != null)
             PhysBoneAdder.SetJiggleOnPrefab(character.prefab, jiggleBones);
@@ -186,7 +185,7 @@ public class CharacterAdder
         {
             character.categoryRatios[category.category] = category.value;
         }
-        Log.LogDebug("Try loading audio");
+        //Log.LogDebug("Try loading audio");
         if(!String.IsNullOrEmpty(jCharacter.themeSongPath))
             character.themeSong = LoadAsset<MusicTrack>(jCharacter.themeSongPath);
         if (jCharacter.audioFootstepsPaths != null)

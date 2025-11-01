@@ -200,16 +200,16 @@ public static class RigHelper
     }
     public static void CreateSimulatedPoints(List<JiggleBone> outputPoints, 
         List<Transform> ignoredTransforms, Transform currentTransform, JiggleBone parentJiggleBone) {
-        CustomCharacterLoaderPlugin.InjectComponent.Instance.Log.LogInfo("Start Create Simulated Points");
+        //CustomCharacterLoaderPlugin.InjectComponent.Instance.Log.LogInfo("Start Create Simulated Points");
         JiggleBone newJiggleBone = new JiggleBone(currentTransform, parentJiggleBone);
         outputPoints.Add(newJiggleBone);
-        CustomCharacterLoaderPlugin.InjectComponent.Instance.Log.LogInfo("added output point");
+        //CustomCharacterLoaderPlugin.InjectComponent.Instance.Log.LogInfo("added output point");
 
         // Create an extra purely virtual point if we have no children.
         if (currentTransform.childCount == 0) {
             if (newJiggleBone.parent == null) {
                 if (newJiggleBone.transform.parent == null) {
-                    CustomCharacterLoaderPlugin.InjectComponent.Instance.Log.LogInfo("Can't have a singular jiggle bone with no parents. That doesn't even make sense!");
+                    //CustomCharacterLoaderPlugin.InjectComponent.Instance.Log.LogInfo("Can't have a singular jiggle bone with no parents. That doesn't even make sense!");
                 } else {
                     outputPoints.Add(new JiggleBone(null, newJiggleBone));
                     return;
@@ -218,7 +218,7 @@ public static class RigHelper
             outputPoints.Add(new JiggleBone(null, newJiggleBone));
             return;
         }
-        CustomCharacterLoaderPlugin.InjectComponent.Instance.Log.LogInfo("for loop");
+        //CustomCharacterLoaderPlugin.InjectComponent.Instance.Log.LogInfo("for loop");
         for (int i = 0; i < currentTransform.childCount; i++) {
             if (ignoredTransforms.Contains(currentTransform.GetChild(i))) {
                 continue;
