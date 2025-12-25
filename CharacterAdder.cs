@@ -119,7 +119,6 @@ public class CharacterAdder
         weapon.name = jWeapon.weaponName;
         // weapon.AchievementRequirement = _dataManager.achievementsData["a_clank"];
         weapon.damageSourceName = jWeapon.weaponName;
-        weapon.description = jWeapon.weaponDescription;
         weapon.localizedName = CreateUniqueLocalizedString("weaponName", jWeapon.weaponName);
         weapon.localizedDescription = CreateUniqueLocalizedString("weaponDescription", jWeapon.weaponDescription);
         weapon.serializedLocalizationKeysName = new Il2CppSystem.Collections.Generic.List<LocalizationKey>() { };
@@ -160,14 +159,11 @@ public class CharacterAdder
         character.serializedLocalizationKeysName = new Il2CppSystem.Collections.Generic.List<LocalizationKey>() { };
         character.serializedLocalizationKeys = new Il2CppSystem.Collections.Generic.List<LocalizationKey>() { };
 
-        character.description = jCharacter.characterDescription;
         //Log.LogDebug(character.description);
         // character.achievementRequirement = _dataManager.achievementsData["a_clank"];
         character.localizedDescription = CreateUniqueLocalizedString("characterDescription",jCharacter.characterDescription);
         character.colliderHeight = jCharacter.colliderHeight;
         character.colliderWidth = jCharacter.colliderWidth;
-        character.coolness = jCharacter.coolness;
-        character.difficulty = jCharacter.difficulty;
         
         character.prefab = LoadAsset<GameObject>(jCharacter.prefabPath);
         // var physBones = (_assetJSON["character"] as JObject)?["physicsBones"] as JArray;
